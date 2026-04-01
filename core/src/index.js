@@ -1,8 +1,8 @@
-// src/index.js
 const fs = require('fs');
 const path = require('path');
-const { Client, GatewayIntentBits, Collection, REST, Routes, ActivityType } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, REST, Routes, ActivityType, MessageFlags } = require('discord.js');
 const config = require('./config/config');
+const { handleTicketInteraction } = require('../modules/tickets/interactionHandler');
 
 if (!config.token) {
     throw new Error('Configurazione mancante: imposta TOKEN in src/config/.env');
@@ -75,23 +75,30 @@ client.once('clientReady', async () => {
 
 // ===== Event interaction =====
 client.on('interactionCreate', async interaction => {
-    if (!interaction.isChatInputCommand()) return;
-
-    const command = client.commands.get(interaction.commandName);
-    if (!command) return;
-
     try {
+        if (interaction.isStringSelectMenu() || interaction.isButton()) {
+            await handleTicketInteraction(interaction);
+            return;
+        }
+
+        if (!interaction.isChatInputCommand()) return;
+
+        const command = client.commands.get(interaction.commandName);
+        if (!command) return;
+
         await command.execute(interaction);
     } catch (err) {
         console.error(err);
         if (interaction.deferred || interaction.replied) {
-            await interaction.editReply("Errore durante l'esecuzione");
+            await interaction.editReply('Errore durante l\'esecuzione');
         } else {
-            await interaction.reply({ content: "Errore durante l'esecuzione", ephemeral: true });
+            await interaction.reply({
+                content: 'Errore durante l\'esecuzione',
+                flags: MessageFlags.Ephemeral
+            });
         }
     }
 });
-
 // ===== Register slash commands =====
 async function registerCommands() {
     const rest = new REST({ version: '10' }).setToken(config.token);

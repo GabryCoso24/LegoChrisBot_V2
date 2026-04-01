@@ -7,14 +7,45 @@ const tickets = {
     logsChannel: "「📥」ticket-logs"
 };
 
-const ticketOptions = {
-    "🌍 Candidatura Evento": "Candidatura Evento",
-    "📹 Candidatura Content Creator": "Candidatura Content Creator",
-    "🔧 Candidatura Staff": "Candidatura Staff",
-    "❓ Aiuto o info": "Aiuto o info",
-    "🎫 Segnalazione di uno o più utenti": "Segnalazione di uno o più utenti",
-    "❕ Altro...": "Altro"
-};
+const ticketOptions = [
+    {
+        label: "🌍 Candidatura Evento",
+        ticketCategory: "Candidatura Evento",
+        description: "Candidati per prendere parte all'evento più imminente sul server",
+        value: "candidatura_evento"
+    },
+    {   
+        label: "📹 Candidatura Content Creator",
+        ticketCategory: "Candidatura Content Creator",
+        description: "Candidati per ottenere i privilegi da content creator",
+        value: "candidatura_content_creator"
+    },
+    {
+        label: "🔧 Candidatura Staff",
+        ticketCategory: "Candidatura Staff",
+        description: "Candidati per entrare a far parte dello staff",
+        value: "candidatura_staff"
+    },
+    {
+        label: "❓ Aiuto o info",
+        ticketCategory: "Aiuto o info",
+        description: "Per aiuto o informazioni generali",
+        value: "aiuto_o_info",
+    },
+    {
+        label: "🎫 Segnalazione di uno o più utenti",
+        ticketCategory: "Segnalazione di uno o più utenti",
+        description: "Segnala uno o più utenti che non stanno rispettando il regolamento o bug abusando",
+        value: "segnalazione"
+    },
+    {
+        label: "❕ Altro...",
+        ticketCategory: "Altro",
+        description: "Per qualsiasi altra richiesta non elencata sopra",
+        value: "altro"
+    }
+];
+
 
 const ticketDataFiles = {
     persistentData: "./data/tickets/persistent_data.json",
