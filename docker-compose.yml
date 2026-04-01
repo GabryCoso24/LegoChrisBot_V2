@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  bot-core:
+    build: ./bot-core
+    depends_on:
+      - ai-service
+    ports:
+      - "3000:3000"
+
+  ai-service:
+    build: ./ai-service
+    ports:
+      - "5000:5000"
+
+  audio-service:
+    build: ./audio-service
+    ports:
+      - "6000:6000"
