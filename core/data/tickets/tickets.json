@@ -1,0 +1,17 @@
+{
+    "ticket-user": {
+        "channel_id": null,
+        "message_id": null,
+        "user_id": null,
+        "claimed_by": null,
+        "closed_by": null,
+        "id": 0,
+        "created_at": null,
+        "closed_at": null,
+        "reason": null,
+        "button_data": {
+            "claim_button": false,
+            "close_with_reason_button": false
+        }
+    }
+}
