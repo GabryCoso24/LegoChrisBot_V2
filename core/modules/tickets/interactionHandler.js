@@ -8,7 +8,6 @@ async function handleTicketInteraction(interaction) {
             case 'ticket:select':
                 ticketCreate(interaction)
                 return;
-
             default:
                 return;
         }

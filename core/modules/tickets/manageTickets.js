@@ -41,13 +41,22 @@ async function ticketCreate(interaction){
             type: ChannelType.GuildText,
             parent: categoryChannel.id,
         });
-    } else if(await categoryExistsByName(guild, ticketCategory)){
+        await interaction.send({
+            content: `Ticket aperto con successo in ${guild.channel.find(`ticket-${creatorUsername}`.toLowerCase())}`,
+            flags: MessageFlags.Ephemeral
+        })
+    } else if(await categoryExistsByName(guild, ticketCategory) &&
+        !(await channelExistsByName(guild, `ticket-${creatorUsername}`))){
         await interaction.guild.channels.create({
             name: `ticket-${creatorUsername}`,
             type: ChannelType.GuildText,
             parent: categoryChannel.id,
             PermissionOverwrites: ticketPermissions
         });
+        await interaction.send({
+            content: `Ticket aperto con successo in ${guild.channel.find(`ticket-${creatorUsername}`.toLowerCase())}`,
+            flags: MessageFlags.Ephemeral
+        })
     } else {
         const existingTicketChannel = guild.channels.cache.find(
             ch => ch.name.toLowerCase() === `ticket-${creatorUsername}`.toLowerCase() && 
