@@ -9,7 +9,6 @@ module.exports = {
     guildId: process.env.GUILD_ID,
 
     aiServiceUrl: process.env.AI_SERVICE_URL,
-    audioServiceUrl: process.env.AUDIO_SERVICE_URL,
 
     presenceStatus: process.env.PRESENCE_STATUS || 'online',
     activityType: process.env.ACTIVITY_TYPE || 'WATCHING',

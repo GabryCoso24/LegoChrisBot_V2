@@ -12,8 +12,3 @@ services:
     build: ./ai-service
     ports:
       - "5000:5000"
-
-  audio-service:
-    build: ./audio-service
-    ports:
-      - "6000:6000"

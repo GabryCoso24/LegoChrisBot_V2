@@ -70,6 +70,7 @@ for (const file of commandFiles) {
 client.once('clientReady', async () => {
     applyPresence();
     console.log(`Bot online come ${client.user.tag}`);
+
     await registerCommands();
 });
 
