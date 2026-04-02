@@ -1,6 +1,6 @@
 const { tickets, ticketOptions, ticketDataFiles, staffRoleId } = require('./constants')
 const { ChannelType, MessageFlags } = require('discord.js')
-const { ticketCreate, ticketClose, handleCloseTicketModal } = require('./manageTickets')
+const { ticketCreate, ticketClose, handleCloseTicketModal, ticketClaim } = require('./manageTickets')
 
 async function handleTicketInteraction(interaction) {
     if (interaction.isModalSubmit()) {
@@ -16,7 +16,7 @@ async function handleTicketInteraction(interaction) {
     if (interaction.isStringSelectMenu()) {
         switch (interaction.customId) {
             case 'ticket:select':
-                await ticketCreate(interaction)
+                await ticketCreate(interaction);
                 return;
             default:
                 return;
@@ -26,11 +26,11 @@ async function handleTicketInteraction(interaction) {
     if (interaction.isButton()) {
         switch (interaction.customId) {
             case 'ticket:close':
-                await ticketClose(interaction)
+                await ticketClose(interaction);
                 return;
 
             case 'ticket:claim':
-                // presa in carico ticket
+                await ticketClaim(interaction);
                 return;
             default:
                 return;
