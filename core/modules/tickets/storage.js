@@ -1,60 +1,68 @@
-const path = require('path');
-const fs = require('fs/promises');
-const { tickets, ticketOptions, ticketDataFiles, staffRoleId } = require('./constants')
-const { folderExists, fileExists } = require('../../lib/fsUtils');
-const { json } = require('stream/consumers');
-const ticketsDir = path.join(__dirname, '../../data/tickets');
+const path = require('node:path');
+const fs = require('node:fs/promises');
+const { ticketDataFiles } = require('./constants');
 
-async function initTicketFolder() {
-    if (!(await folderExists(ticketsDir))) {
-        await fs.mkdir(ticketsDir);
-        console.log('cartella creata');
-    }
-    else console.log("cartella esistente");
+const dataPaths = {
+  ids: path.resolve(process.cwd(), ticketDataFiles.id_counter),
+  tickets: path.resolve(process.cwd(), ticketDataFiles.tickets),
+  persistent: path.resolve(process.cwd(), ticketDataFiles.persistentData),
+};
+
+async function readJson(filePath, fallback = {}) {
+  try {
+    const raw = await fs.readFile(filePath, 'utf8');
+    return JSON.parse(raw);
+  } catch {
+    return fallback;
+  }
 }
 
-async function initTicketData(){
-    for(const dataFile of Object.values(ticketDataFiles)){
-        if(!(await fileExists(dataFile))){
-            await assignDefaultDataForFile();
-            console.log('file creato:', dataFile);
-        }
-        else console.log("file eistente");
-    }
+async function writeJson(filePath, data) {
+  await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf8');
 }
 
-async function assignDefaultDataForFile(){
-    for(const dataFilePath of Object.values(ticketDataFiles)){
-        dataFileName = dataFilePath.slice(15)
-        if(dataFileName == 'ids.json') fs.writeFile(dataFilePath, JSON.stringify({"ticket_id": 0}, null, 4), 'utf8');
-        else if(dataFileName == 'tickets.json') fs.writeFile(dataFilePath, JSON.stringify(
-            {
-                //TODO - implementare username di chi apre il ticket
-                "ticket-user": {
-                    "channel_id": null,
-                    "message_id": null,
-                    "user_id": null,
-                    "claimed_by": null,
-                    "closed_by": null,
-                    "id" : 0,
-                    "created_at": null,
-                    "closed_at": null,
-                    "reason": null,
-                    "button_data" : {
-                        "claim_button": false,
-                        "close_with_reason_button": false
-                    }
-                }
-            }, null, 4
-        ));
-        else if(dataFileName == 'persistent_data.json') fs.writeFile(dataFilePath, JSON.stringify(
-            {
-                "channel_id": null,
-                "message_id": null
-            }, null, 4
-        ));
-    }
+async function nextTicketId() {
+  const ids = await readJson(dataPaths.ids, { ticket_id: 0 });
+  ids.ticket_id += 1;
+  await writeJson(dataPaths.ids, ids);
+  return ids.ticket_id;
 }
 
-initTicketFolder().catch(console.error);
-initTicketData().catch(console.error)
+async function saveTicket(ticketKey, ticketData) {
+  const allTickets = await readJson(dataPaths.tickets, {});
+  allTickets[ticketKey] = ticketData;
+  await writeJson(dataPaths.tickets, allTickets);
+  return allTickets[ticketKey];
+}
+
+async function getTicket(ticketKey) {
+  const allTickets = await readJson(dataPaths.tickets, {});
+  return allTickets[ticketKey] ?? null;
+}
+
+async function getTicketByChannel(channelId) {
+  const allTickets = await readJson(dataPaths.tickets, {});
+  return Object.values(allTickets).find(t => t.channel_id === channelId) ?? null;
+}
+
+async function getOpenTicketByUser(userId) {
+  const allTickets = await readJson(dataPaths.tickets, {});
+  return Object.values(allTickets).find(t => t.user_id === userId && !t.closed_at) ?? null;
+}
+
+async function updateTicket(ticketKey, patch) {
+  const allTickets = await readJson(dataPaths.tickets, {});
+  if (!allTickets[ticketKey]) return null;
+  allTickets[ticketKey] = { ...allTickets[ticketKey], ...patch };
+  await writeJson(dataPaths.tickets, allTickets);
+  return allTickets[ticketKey];
+}
+
+module.exports = {
+  nextTicketId,
+  saveTicket,
+  getTicket,
+  getTicketByChannel,
+  getOpenTicketByUser,
+  updateTicket
+};

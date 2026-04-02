@@ -1,27 +1,12 @@
 const { tickets, ticketOptions, ticketDataFiles, staffRoleId } = require('./constants')
+const { ChannelType, MessageFlags } = require('discord.js')
+const { ticketCreate } = require('./manageTickets')
 
 async function handleTicketInteraction(interaction) {
     if (interaction.isStringSelectMenu()) {
         switch (interaction.customId) {
             case 'ticket:select':
-                const scelta = interaction.values[0];
-                switch (scelta) {
-                    case 'candidatura_evento':
-                        await interaction.reply({ content: 'ciao', ephemeral: true });
-                        break;
-
-                    case 'candidatura_staff':
-                        await interaction.reply({ content: 'ciao', ephemeral: true });
-                        break;
-
-                    case 'aiuto_info':
-                        await interaction.reply({ content: 'ciao', ephemeral: true });
-                        break;
-
-                    default:
-                        await interaction.reply({ content: 'ciao', ephemeral: true });
-                        break;
-                }
+                ticketCreate(interaction)
                 return;
 
             default:
@@ -47,6 +32,24 @@ async function handleTicketInteraction(interaction) {
                 return;
         }
     }
+}
+
+async function channelExistsByName(guild, name) {
+  await guild.channels.fetch(); // assicura cache aggiornata
+  const normalized = name.trim().toLowerCase();
+
+  return guild.channels.cache.some(
+    ch => ch.name.toLowerCase() === normalized && ch.type === ChannelType.GuildText
+  );
+}
+
+async function categoryExistsByName(guild, name) {
+  await guild.channels.fetch();
+  const normalized = name.trim().toLowerCase();
+
+  return guild.channels.cache.some(
+    ch => ch.name.toLowerCase() === normalized && ch.type === ChannelType.GuildCategory
+  );
 }
 
 module.exports = {

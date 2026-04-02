@@ -13,7 +13,7 @@ async function folderExists(folderPath) {
 async function fileExists(filePath){
     try {
         const stats = await fsp.stat(filePath);
-        return stats.isDirectory();
+        return stats.isFile();
     } catch {
         return false;
     }
