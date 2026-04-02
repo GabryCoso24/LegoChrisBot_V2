@@ -1,4 +1,5 @@
 const config = require('../../src/config/config');
+const { ButtonStyle } = require('discord.js');
 
 const tickets = {
     categoryName: "🎫 | ----- | Supporto | ----- | 🎫",
@@ -46,9 +47,20 @@ const ticketOptions = [
     }
 ];
 
+const ticketActions = [
+    {
+        label: "🙋 Claim",
+        value: 'ticket:claim',
+        style: ButtonStyle.Success
+    },
+    {
+        label: "🔒 Chiudi",
+        value: 'ticket:close',
+        style: ButtonStyle.Danger
+    }
+]
 
 const ticketDataFiles = {
-    persistentData: "./data/tickets/persistent_data.json",
     tickets: "./data/tickets/tickets.json",
     id_counter: "./data/tickets/ids.json"
 };
@@ -56,5 +68,5 @@ const ticketDataFiles = {
 const staffRoleId = config.staffRoleId;
 
 module.exports = {
-    tickets, ticketOptions, ticketDataFiles, staffRoleId   
+    tickets, ticketOptions, ticketDataFiles, staffRoleId, ticketActions   
 };

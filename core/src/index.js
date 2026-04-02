@@ -76,13 +76,12 @@ client.once('clientReady', async () => {
 // ===== Event interaction =====
 client.on('interactionCreate', async interaction => {
     try {
-        if (interaction.isStringSelectMenu() || interaction.isButton()) {
+        if (interaction.isStringSelectMenu() || interaction.isButton() || interaction.isModalSubmit()) {
             await handleTicketInteraction(interaction);
             return;
         }
 
         if (!interaction.isChatInputCommand()) return;
-
         const command = client.commands.get(interaction.commandName);
         if (!command) return;
 

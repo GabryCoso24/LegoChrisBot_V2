@@ -13,20 +13,8 @@ async function ticketSetup(interaction, targetChannel) {
             iconURL: interaction.guild?.iconURL({ dynamic: true, size: 1024 })
         })
         .setThumbnail(interaction.guild?.iconURL({ dynamic: true, size: 1024 }) ?? null)
-
-    const options = ticketOptions.map(option =>
-        new StringSelectMenuOptionBuilder()
-        .setLabel(option.label)
-        .setDescription(option.description)
-        .setValue(option.value)
-    );
-
-    const selectMenu = new StringSelectMenuBuilder()
-    .setCustomId('ticket:select')
-    .setPlaceholder('Seleziona il tipo di ticket')
-    .addOptions(options);
-
-    const row = new ActionRowBuilder().addComponents(selectMenu);
+    
+    const row = buildTicketSelectRow(ticketOptions)
 
     const ticketImagePath = path.join(__dirname, '../../../data/tickets/Tickets_MT.png');
     await targetChannel.send({ files: [ticketImagePath] });
@@ -40,8 +28,22 @@ async function ticketSetup(interaction, targetChannel) {
         content: `Setup inviato in ${targetChannel}.`,
         flags: MessageFlags.Ephemeral
     });
+}
 
+function buildTicketSelectRow(ticketOptions) {
+    const options = ticketOptions.map(option =>
+        new StringSelectMenuOptionBuilder()
+        .setLabel(option.label)
+        .setDescription(option.description)
+        .setValue(option.value)
+    );
 
+    const selectMenu = new StringSelectMenuBuilder()
+    .setCustomId('ticket:select')
+    .setPlaceholder('Seleziona il tipo di ticket')
+    .addOptions(options);
+
+    return new ActionRowBuilder().addComponents(selectMenu);
 }
 
 module.exports = {
@@ -60,5 +62,6 @@ module.exports = {
         const targetChannel = interaction.options.getChannel('canale') || interaction.channel;
 
         await ticketSetup(interaction, targetChannel);
-    }
+    },
+    buildTicketSelectRow
 };

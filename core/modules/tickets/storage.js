@@ -5,7 +5,6 @@ const { ticketDataFiles } = require('./constants');
 const dataPaths = {
   ids: path.resolve(process.cwd(), ticketDataFiles.id_counter),
   tickets: path.resolve(process.cwd(), ticketDataFiles.tickets),
-  persistent: path.resolve(process.cwd(), ticketDataFiles.persistentData),
 };
 
 async function readJson(filePath, fallback = {}) {
@@ -28,6 +27,11 @@ async function nextTicketId() {
   return ids.ticket_id;
 }
 
+async function currentTicketId(){
+    const id = await readJson(dataPaths.ids, { ticket_id: 0 });
+    return id;
+}
+
 async function saveTicket(ticketKey, ticketData) {
   const allTickets = await readJson(dataPaths.tickets, {});
   allTickets[ticketKey] = ticketData;
@@ -43,6 +47,14 @@ async function getTicket(ticketKey) {
 async function getTicketByChannel(channelId) {
   const allTickets = await readJson(dataPaths.tickets, {});
   return Object.values(allTickets).find(t => t.channel_id === channelId) ?? null;
+}
+
+async function getTicketEntryByChannel(channelId) {
+  const allTickets = await readJson(dataPaths.tickets, {});
+  const entry = Object.entries(allTickets).find(([, t]) => t.channel_id === channelId);
+  if (!entry) return null;
+  const [key, ticket] = entry;
+  return { key, ticket };
 }
 
 async function getOpenTicketByUser(userId) {
@@ -63,6 +75,8 @@ module.exports = {
   saveTicket,
   getTicket,
   getTicketByChannel,
+  getTicketEntryByChannel,
   getOpenTicketByUser,
-  updateTicket
+  updateTicket,
+  currentTicketId
 };
