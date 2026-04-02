@@ -5,6 +5,18 @@ const { ChannelType, ModalBuilder, TextInputBuilder, LabelBuilder, TextInputStyl
 const { nextTicketId, saveTicket, getOpenTicketByUser, updateTicket, getTicketEntryByChannel } = require("./storage")
 const { buildTicketSelectRow } = require('../../src/commands/utilities/tickets')
 
+function userIsStaff(interaction) {
+    if (!staffRoleId) return false;
+    return interaction.member?.roles?.cache?.has(staffRoleId) ?? false;
+}
+
+async function replyStaffOnly(interaction) {
+    await interaction.reply({
+        content: 'Solo lo staff puo usare questa azione.',
+        flags: MessageFlags.Ephemeral
+    });
+}
+
 async function buildTicketTranscript(channel) {
     const transcriptDir = path.resolve(process.cwd(), 'data/tickets/transcripts')
     await fs.mkdir(transcriptDir, { recursive: true })
@@ -227,6 +239,11 @@ async function ticketCreate(interaction) {
 }
 
 async function ticketClose(interaction) {
+    if (!userIsStaff(interaction)) {
+        await replyStaffOnly(interaction);
+        return;
+    }
+
     const modal = new ModalBuilder().setCustomId('closeTicketModal').setTitle('Chiudi Ticket')
         const reasonInput = new TextInputBuilder()
 			.setCustomId('reasonInput')
@@ -247,6 +264,11 @@ async function ticketClose(interaction) {
 }
 
 async function handleCloseTicketModal(interaction) {
+    if (!userIsStaff(interaction)) {
+        await replyStaffOnly(interaction);
+        return;
+    }
+
     const reason = interaction.fields.getTextInputValue('reasonInput')?.trim();
     const entry = await getTicketEntryByChannel(interaction.channelId);
     const ticketChannel = interaction.channel;
@@ -305,6 +327,11 @@ async function handleCloseTicketModal(interaction) {
 }
 
 async function ticketClaim(interaction){
+    if (!userIsStaff(interaction)) {
+        await replyStaffOnly(interaction);
+        return;
+    }
+
     const entry = await getTicketEntryByChannel(interaction.channelId);
     if (!entry) {
         await interaction.reply({
