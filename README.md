@@ -136,7 +136,7 @@ Configurable in `src/config/config.js`:
 
 ## 📝 License
 
-This project is distributed under the **MIT** license. See [LICENSE](LICENSE) for details.
+This project is distributed under the **AGPL** license. See [LICENSE](LICENSE) for details.
 
 ## 🤝 Contributing
 
@@ -148,4 +148,4 @@ For questions or issues, open an issue on GitHub.
 
 ---
 
-**LegoChris Bot V2** © 2026 - Built with ❤️
+**LegoChris Bot V2** © 2026 - Built with 🧱 by gabrycoso
