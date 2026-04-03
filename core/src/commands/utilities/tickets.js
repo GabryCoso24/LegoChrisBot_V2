@@ -99,10 +99,10 @@ module.exports = {
         if (interaction.commandName === 'ticket' && interaction.options.getSubcommand() === 'claim') {
             const focusedValue = interaction.options.getFocused().toLowerCase();
             
-            // Usa la funzione helper per ottenere i canali ticket
+            // Use the helper function to get ticket channels
             const ticketChannels = getTicketChannels(interaction.guild);
 
-            // Filtra per valore fornito
+            // Filter by provided value
             const filtered = ticketChannels.filter(ch => 
                 ch.name.toLowerCase().includes(focusedValue)
             ).slice(0, 25);

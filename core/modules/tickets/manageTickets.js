@@ -228,7 +228,7 @@ async function ticketCreate(interaction) {
     const ticketCategory = selectedOption.ticketCategory;
     const creatorUsername = interaction.user.username;
     const ticketChannelName = `ticket-${creatorUsername}`;
-    // Permessi per il ticket (everyone negato, creator e staff permessi)
+    // Permissions for the ticket (everyone denied, creator and staff allowed)
     const ticketPermissions = [
         {
             id: everyoneId,
@@ -244,20 +244,20 @@ async function ticketCreate(interaction) {
         }
     ];
 
-    // Controlla se l'utente ha già un ticket aperto
+    // Check if user already has an open ticket
     const existingTicket = await getOpenTicketByUser(creatorId);
     if (existingTicket) {
         const existingChannel = await guild.channels.fetch(existingTicket.channel_id).catch(() => null);
         if (existingChannel) {
             await interaction.followUp({
-                content: `Hai già un ticket aperto in ${existingChannel}`,
+                content: `You already have an open ticket in ${existingChannel}`,
                 flags: MessageFlags.Ephemeral
             });
             return;
         }
     }
 
-    // Recupera o crea la categoria
+    // Get or create the category
     let categoryChannel = await getCategoryByName(guild, ticketCategory);
     if (!categoryChannel) {
         categoryChannel = await guild.channels.create({
@@ -267,7 +267,7 @@ async function ticketCreate(interaction) {
         });
     }
 
-    // Crea il canale ticket
+    // Create the ticket channel
     const ticketChannel = await guild.channels.create({
         name: ticketChannelName,
         type: ChannelType.GuildText,
@@ -275,11 +275,11 @@ async function ticketCreate(interaction) {
         permissionOverwrites: ticketPermissions
     });
 
-    // Crea e invia l'embed di benvenuto
+    // Create and send the welcome embed
     const ticketEmbed = new EmbedBuilder()
         .setColor(0xff7900)
         .setTitle(`:ticket: Ticket - ${ticketCategory}`)
-        .setDescription(`**${interaction.user} ha aperto un ticket per ${ticketCategory}**\nEsponi il tuo problema/richiesta in modo chiaro e dettagliato. Risponderemo al più presto possibile.`)
+        .setDescription(`**${interaction.user} has opened a ticket for ${ticketCategory}**\nExplain your issue/request clearly and in detail. We will respond as soon as possible.`)
         .setFooter({
             text: "LegoChris Ticket System",
             iconURL: interaction.guild?.iconURL({ dynamic: true, size: 1024 })
@@ -299,7 +299,7 @@ async function ticketCreate(interaction) {
         components: [row]
     });
 
-    // Salva i dati del ticket
+    // Save ticket data
     const ticketId = await nextTicketId();
     const ticketKey = `ticket-${creatorId}-${ticketId}`;
     const ticketRecord = {
@@ -321,9 +321,9 @@ async function ticketCreate(interaction) {
 
     await interaction.message.edit({ components: [buildTicketSelectRow(ticketOptions)] }).catch(() => null);
 
-    // Risponde all'utente
+    // Reply to the user
     await interaction.followUp({
-        content: `Ticket aperto con successo in ${ticketChannel}`,
+        content: `Ticket successfully opened in ${ticketChannel}`,
         flags: MessageFlags.Ephemeral
     });
 }
@@ -344,7 +344,7 @@ async function ticketClose(interaction, ticketChannel = null, reason = null) {
         return;
     }
 
-    const modal = new ModalBuilder().setCustomId(`closeTicketModal:${targetChannelId}`).setTitle('Chiudi Ticket')
+    const modal = new ModalBuilder().setCustomId(`closeTicketModal:${targetChannelId}`).setTitle('Close Ticket')
         const reasonInput = new TextInputBuilder()
 			.setCustomId('reasonInput')
 			// Short means a single line of text.
@@ -394,7 +394,7 @@ async function ticketClaim(interaction, ticketChannel = null){
         const payload = {
             embeds: [buildResponseEmbed({
                 title: 'Ticket',
-                description: 'Impossibile trovare il ticket associato a questo canale.'
+                description: 'Unable to find the ticket associated with this channel.'
             })],
             flags: MessageFlags.Ephemeral
         };
@@ -411,7 +411,7 @@ async function ticketClaim(interaction, ticketChannel = null){
         const payload = {
             embeds: [buildResponseEmbed({
                 title: 'Ticket',
-                description: `Questo ticket e gia stato claimato da <@${entry.ticket.claimed_by_id}>.`
+                description: `This ticket has already been claimed by <@${entry.ticket.claimed_by_id}>.`
             })],
             flags: MessageFlags.Ephemeral
         };
@@ -472,11 +472,11 @@ async function ticketClaim(interaction, ticketChannel = null){
         )
     );
 
-    // Edita il messaggio del pulsante se è disponibile (button interaction)
+    // Edit the button message if available (button interaction)
     if (interaction.message) {
         await interaction.message.edit({ components: [updatedRow] }).catch(() => null);
     } else {
-        // Se è un comando slash, cercal il messaggio con il pulsante claim nel canale
+        // If it's a slash command, search for the message with the claim button in the channel
         try {
             const messages = await channelToUpdate.messages.fetch({ limit: 10 });
             const messageWithClaim = messages.find(msg => 
@@ -488,7 +488,7 @@ async function ticketClaim(interaction, ticketChannel = null){
                 await messageWithClaim.edit({ components: [updatedRow] }).catch(() => null);
             }
         } catch (err) {
-            // Se non riusciamo a trovare il messaggio, continuiamo comunque
+            // If we can't find the message, continue anyway
         }
     }
 

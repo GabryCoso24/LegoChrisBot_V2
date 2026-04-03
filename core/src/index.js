@@ -8,7 +8,7 @@ const { handleAiMessage } = require('../modules/ai/aiMessageHandler');
 const { handleTtsMessage } = require('../modules/ttsClassic/ttsMessageHandler');
 
 if (!config.token) {
-    throw new Error('Configurazione mancante: imposta TOKEN in src/config/.env');
+    throw new Error('Missing configuration: set TOKEN in src/config/.env');
 }
 
 const client = new Client({
@@ -27,7 +27,7 @@ const client = new Client({
     ]
 });
 
-// ===== Carica comandi dinamicamente =====
+// ===== Load commands dynamically =====
 client.commands = new Collection();
 const commandsPath = path.join(__dirname, 'commands');
 const getCommandFiles = dir => {
@@ -76,15 +76,15 @@ for (const file of commandFiles) {
     client.commands.set(command.data.name, command);
 }
 
-// ===== Event ready =====
+// ===== Ready event =====
 client.once('clientReady', async () => {
     applyPresence();
-    console.log(`Bot online come ${client.user.tag}`);
+    console.log(`Bot online as ${client.user.tag}`);
 
     await registerCommands();
 });
 
-// ===== Event interaction =====
+// ===== Interaction event =====
 client.on('interactionCreate', async interaction => {
     try {
         if (interaction.isStringSelectMenu() || interaction.isButton() || interaction.isModalSubmit()) {
@@ -107,10 +107,10 @@ client.on('interactionCreate', async interaction => {
     } catch (err) {
         console.error(err);
         if (interaction.deferred || interaction.replied) {
-            await interaction.editReply({ content: 'Errore durante l\'esecuzione' }).catch(() => null);
+            await interaction.editReply({ content: 'Error during execution' }).catch(() => null);
         } else {
             await interaction.reply({
-                content: 'Errore durante l\'esecuzione',
+                content: 'Error during execution',
                 flags: MessageFlags.Ephemeral
             }).catch(() => null);
         }
@@ -149,11 +149,11 @@ async function registerCommands() {
     const appId = client.application?.id || client.user?.id;
 
     if (!appId) {
-        throw new Error('Impossibile risolvere application id dal bot token');
+        throw new Error('Unable to resolve application id from bot token');
     }
 
     if (config.clientId && config.clientId !== appId) {
-        console.warn(`CLIENT_ID (${config.clientId}) non corrisponde al bot (${appId}). Uso ${appId}.`);
+        console.warn(`CLIENT_ID (${config.clientId}) does not match bot (${appId}). Using ${appId}.`);
     }
 
     const route = config.guildId
@@ -161,13 +161,13 @@ async function registerCommands() {
         : Routes.applicationCommands(appId);
 
     try {
-        console.log("Registrazione comandi...");
+        console.log("Registering commands...");
         await rest.put(route, { body: cmds });
-        console.log("Comandi registrati");
+        console.log("Commands registered");
     } catch (err) { console.error(err); }
 }
 
-// ===== Avvio bot =====
+// ===== Start bot =====
 (async () => {
     await client.login(config.token);
     
