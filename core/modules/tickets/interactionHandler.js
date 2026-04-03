@@ -4,13 +4,11 @@ const { ticketCreate, ticketClose, handleCloseTicketModal, ticketClaim } = requi
 
 async function handleTicketInteraction(interaction) {
     if (interaction.isModalSubmit()) {
-        switch (interaction.customId) {
-            case 'closeTicketModal':
-                await handleCloseTicketModal(interaction);
-                return;
-            default:
-                return;
+        if (interaction.customId.startsWith('closeTicketModal:')) {
+            await handleCloseTicketModal(interaction);
+            return;
         }
+        return;
     }
 
     if (interaction.isStringSelectMenu()) {

@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, ChannelType, MessageFlags } = require('discord.js');
 const soundboard = require('../../services/soundboardVoiceManager');
+const { buildResponseEmbed } = require('../../lib/responseEmbed');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -49,23 +50,28 @@ module.exports = {
 
         try {
             if (subcommand === 'playsound') {
-                await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+                await interaction.deferReply();
                 const soundName = interaction.options.getString('nome', true);
                 const targetChannel = interaction.options.getChannel('canale');
 
                 const queued = await soundboard.queueSound(interaction, soundName, targetChannel);
 
-                await interaction.editReply(
-                    `Suono ${queued.name} aggiunto in coda (id: ${queued.id}).`
-                );
+                await interaction.editReply({
+                    embeds: [buildResponseEmbed({
+                        title: 'Soundboard',
+                        description: `Suono ${queued.name} aggiunto in coda (id: ${queued.id}).`
+                    })]
+                });
                 return;
             }
 
             if (subcommand === 'skip') {
                 const skipped = soundboard.skip(interaction.guildId);
                 await interaction.reply({
-                    content: skipped ? 'Suono saltato.' : 'Nessun suono in riproduzione.',
-                    flags: MessageFlags.Ephemeral
+                    embeds: [buildResponseEmbed({
+                        title: 'Soundboard',
+                        description: skipped ? 'Suono saltato.' : 'Nessun suono in riproduzione.'
+                    })]
                 });
                 return;
             }
@@ -73,8 +79,10 @@ module.exports = {
             if (subcommand === 'stop') {
                 const stopped = soundboard.stop(interaction.guildId);
                 await interaction.reply({
-                    content: stopped ? 'Riproduzione fermata e coda svuotata.' : 'Nessuna sessione audio attiva.',
-                    flags: MessageFlags.Ephemeral
+                    embeds: [buildResponseEmbed({
+                        title: 'Soundboard',
+                        description: stopped ? 'Riproduzione fermata e coda svuotata.' : 'Nessuna sessione audio attiva.'
+                    })]
                 });
                 return;
             }
@@ -89,26 +97,48 @@ module.exports = {
                     : 'Coda vuota';
 
                 await interaction.reply({
-                    content: `${now}\n\n${pending}`,
-                    flags: MessageFlags.Ephemeral
+                    embeds: [buildResponseEmbed({
+                        title: 'Soundboard Queue',
+                        fields: [
+                            { name: 'Stato', value: now, inline: false },
+                            { name: 'Coda', value: pending, inline: false }
+                        ]
+                    })]
                 });
                 return;
             }
 
             if (subcommand === 'listsounds') {
-                await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+                await interaction.deferReply();
                 const sounds = soundboard.listSounds();
                 const content = sounds.length
                     ? sounds.map((sound, index) => `${index + 1}. ${sound}`).join('\n')
                     : 'Nessun suono disponibile.';
 
-                await interaction.editReply(content.slice(0, 1900));
+                await interaction.editReply({
+                    embeds: [buildResponseEmbed({
+                        title: 'Soundboard - Suoni disponibili',
+                        description: content.slice(0, 3900)
+                    })]
+                });
             }
         } catch (error) {
             if (interaction.deferred || interaction.replied) {
-                await interaction.editReply(`Errore audio service: ${error.message}`);
+                await interaction.editReply({
+                    embeds: [buildResponseEmbed({
+                        title: 'Errore audio service',
+                        description: error.message,
+                        color: 0xff4d4d
+                    })]
+                });
             } else {
-                await interaction.reply({ content: `Errore audio service: ${error.message}`, flags: MessageFlags.Ephemeral });
+                await interaction.reply({
+                    embeds: [buildResponseEmbed({
+                        title: 'Errore audio service',
+                        description: error.message,
+                        color: 0xff4d4d
+                    })]
+                });
             }
         }
     }

@@ -82,6 +82,13 @@ client.on('interactionCreate', async interaction => {
             return;
         }
 
+        if (interaction.isAutocomplete()) {
+            const command = client.commands.get(interaction.commandName);
+            if (!command || !command.autocomplete) return;
+            await command.autocomplete(interaction);
+            return;
+        }
+
         if (!interaction.isChatInputCommand()) return;
         const command = client.commands.get(interaction.commandName);
         if (!command) return;
@@ -90,12 +97,12 @@ client.on('interactionCreate', async interaction => {
     } catch (err) {
         console.error(err);
         if (interaction.deferred || interaction.replied) {
-            await interaction.editReply('Errore durante l\'esecuzione');
+            await interaction.editReply({ content: 'Errore durante l\'esecuzione' }).catch(() => null);
         } else {
             await interaction.reply({
                 content: 'Errore durante l\'esecuzione',
                 flags: MessageFlags.Ephemeral
-            });
+            }).catch(() => null);
         }
     }
 });

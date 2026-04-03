@@ -4,7 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "commands:clear": "node src/scripts/clearCommands.js both",
+    "commands:clear:global": "node src/scripts/clearCommands.js global",
+    "commands:clear:guild": "node src/scripts/clearCommands.js guild"
   },
   "keywords": [],
   "author": "",

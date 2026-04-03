@@ -1,9 +1,9 @@
 const { tickets, ticketOptions, ticketDataFiles, staffRoleId, ticketActions } = require('./constants')
 const fs = require('node:fs/promises')
 const path = require('node:path')
-const { ChannelType, ModalBuilder, TextInputBuilder, LabelBuilder, TextInputStyle, MessageFlags, PermissionsBitField, PermissionFlagsBits, EmbedBuilder, ButtonBuilder, ActionRowBuilder, AttachmentBuilder } = require('discord.js')
+const { ChannelType, ModalBuilder, TextInputBuilder, LabelBuilder, TextInputStyle, MessageFlags, PermissionsBitField, PermissionFlagsBits, EmbedBuilder, ButtonBuilder, ActionRowBuilder, AttachmentBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder } = require('discord.js')
 const { nextTicketId, saveTicket, getOpenTicketByUser, updateTicket, getTicketEntryByChannel } = require("./storage")
-const { buildTicketSelectRow } = require('../../src/commands/utilities/tickets')
+const { buildResponseEmbed } = require('../../src/lib/responseEmbed')
 
 function userIsStaff(interaction) {
     if (!staffRoleId) return false;
@@ -124,6 +124,86 @@ async function getCategoryByName(guild, name) {
   ) ?? null;
 }
 
+async function finalizeTicketClose(interaction, entry, ticketChannel, reason) {
+    const parentCategoryId = ticketChannel?.parentId;
+
+    if (!entry) {
+        await interaction.reply({
+            content: 'Impossibile trovare il ticket associato a questo canale.',
+            flags: MessageFlags.Ephemeral
+        });
+        return;
+    }
+
+    if (entry.ticket.closed_at) {
+        await interaction.reply({
+            content: `Questo ticket e gia stato chiuso da <@${entry.ticket.closed_by_id}>.`,
+            flags: MessageFlags.Ephemeral
+        });
+        return;
+    }
+
+    if (!interaction.deferred && !interaction.replied) {
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral }).catch(() => null);
+    }
+
+    const closedAt = new Date().toLocaleString('it-IT', { hour12: false });
+    await updateTicket(entry.key, {
+        reason,
+        closed_by_id: interaction.user.id,
+        closed_by_username: interaction.user.username,
+        closed_at: closedAt
+    });
+
+    const transcript = await buildTicketTranscript(ticketChannel).catch(() => null)
+    await sendTicketTranscriptToLogs(interaction.guild, entry, transcript, interaction.user, closedAt, reason, entry.ticket.created_at).catch(() => null)
+
+    const closeMessage = transcript
+        ? `Ticket chiuso con successo. Transcript salvato in file: ${transcript.fileName}. Il canale verra eliminato tra pochi secondi.`
+        : 'Ticket chiuso con successo. Non sono riuscito a generare il transcript, ma il canale verra eliminato tra pochi secondi.';
+
+    const closePayload = {
+        embeds: [buildResponseEmbed({
+            title: 'Ticket Close',
+            description: closeMessage
+        })]
+    };
+
+    if (interaction.deferred || interaction.replied) {
+        await interaction.editReply(closePayload).catch(() => null);
+    } else {
+        await interaction.reply({
+            ...closePayload,
+            flags: MessageFlags.Ephemeral
+        }).catch(() => null);
+    }
+
+    setTimeout(() => {
+        ticketChannel?.delete('Ticket chiuso').catch(() => null);
+
+        if (!parentCategoryId) {
+            return;
+        }
+
+        interaction.guild.channels.fetch().then(() => {
+            const hasOtherTicketChannels = interaction.guild.channels.cache.some(channel =>
+                channel.parentId === parentCategoryId &&
+                channel.id !== ticketChannel?.id &&
+                channel.type === ChannelType.GuildText
+            );
+
+            if (!hasOtherTicketChannels) {
+                const categoryChannel = interaction.guild.channels.cache.get(parentCategoryId);
+                if (categoryChannel?.type === ChannelType.GuildCategory) {
+                    return categoryChannel.delete('Categoria ticket vuota').catch(() => null);
+                }
+            }
+
+            return null;
+        }).catch(() => null);
+    }, 1500);
+}
+
 
 async function ticketCreate(interaction) {
     const guild = interaction.guild;
@@ -131,6 +211,20 @@ async function ticketCreate(interaction) {
     const everyoneId = guild.roles.everyone.id;
     const userChoice = interaction.values[0];
     const selectedOption = ticketOptions.find(opt => opt.value === userChoice);
+
+    if (!selectedOption) {
+        await interaction.reply({
+            embeds: [buildResponseEmbed({
+                title: 'Ticket',
+                description: 'Opzione non valida.'
+            })],
+            flags: MessageFlags.Ephemeral
+        });
+        return;
+    }
+
+    await interaction.deferUpdate();
+
     const ticketCategory = selectedOption.ticketCategory;
     const creatorUsername = interaction.user.username;
     const ticketChannelName = `ticket-${creatorUsername}`;
@@ -150,17 +244,12 @@ async function ticketCreate(interaction) {
         }
     ];
 
-    if (!selectedOption) {
-        await interaction.reply({ content: 'Opzione non valida.', flags: MessageFlags.Ephemeral });
-        return;
-    }
-
     // Controlla se l'utente ha già un ticket aperto
     const existingTicket = await getOpenTicketByUser(creatorId);
     if (existingTicket) {
         const existingChannel = await guild.channels.fetch(existingTicket.channel_id).catch(() => null);
         if (existingChannel) {
-            await interaction.reply({
+            await interaction.followUp({
                 content: `Hai già un ticket aperto in ${existingChannel}`,
                 flags: MessageFlags.Ephemeral
             });
@@ -229,7 +318,7 @@ async function ticketCreate(interaction) {
 
     await saveTicket(ticketKey, ticketRecord);
 
-    await interaction.update({ components: [buildTicketSelectRow(ticketOptions)]});
+    await interaction.message.edit({ components: [buildTicketSelectRow(ticketOptions)] }).catch(() => null);
 
     // Risponde all'utente
     await interaction.followUp({
@@ -238,13 +327,23 @@ async function ticketCreate(interaction) {
     });
 }
 
-async function ticketClose(interaction) {
+async function ticketClose(interaction, ticketChannel = null, reason = null) {
     if (!userIsStaff(interaction)) {
         await replyStaffOnly(interaction);
         return;
     }
 
-    const modal = new ModalBuilder().setCustomId('closeTicketModal').setTitle('Chiudi Ticket')
+    const targetChannelId = ticketChannel?.id || interaction.channelId;
+    const closeReason = (reason || interaction.options?.getString?.('reason') || '').trim();
+
+    if (closeReason) {
+        const entry = await getTicketEntryByChannel(targetChannelId);
+        const resolvedTicketChannel = ticketChannel || interaction.channel;
+        await finalizeTicketClose(interaction, entry, resolvedTicketChannel, closeReason);
+        return;
+    }
+
+    const modal = new ModalBuilder().setCustomId(`closeTicketModal:${targetChannelId}`).setTitle('Chiudi Ticket')
         const reasonInput = new TextInputBuilder()
 			.setCustomId('reasonInput')
 			// Short means a single line of text.
@@ -270,74 +369,57 @@ async function handleCloseTicketModal(interaction) {
     }
 
     const reason = interaction.fields.getTextInputValue('reasonInput')?.trim();
-    const entry = await getTicketEntryByChannel(interaction.channelId);
-    const ticketChannel = interaction.channel;
-    const parentCategoryId = ticketChannel?.parentId;
-
-    if (!entry) {
-        await interaction.reply({
-            content: 'Impossibile trovare il ticket associato a questo canale.',
-            flags: MessageFlags.Ephemeral
-        });
-        return;
-    }
-
-    const closedAt = new Date().toLocaleString('it-IT', { hour12: false });
-    await updateTicket(entry.key, {
-        reason,
-        closed_by_id: interaction.user.id,
-        closed_by_username: interaction.user.username,
-        closed_at: closedAt
-    });
-
-    const transcript = await buildTicketTranscript(interaction.channel).catch(() => null)
-    await sendTicketTranscriptToLogs(interaction.guild, entry, transcript, interaction.user, closedAt, reason, entry.ticket.created_at).catch(() => null)
-
-    await interaction.reply({
-        content: transcript
-            ? `Ticket chiuso con successo. Transcript salvato in file: ${transcript.fileName}. Il canale verra eliminato tra pochi secondi.`
-            : 'Ticket chiuso con successo. Non sono riuscito a generare il transcript, ma il canale verra eliminato tra pochi secondi.',
-        flags: MessageFlags.Ephemeral
-    });
-
-    setTimeout(() => {
-        ticketChannel?.delete('Ticket chiuso').catch(() => null);
-
-        if (!parentCategoryId) {
-            return;
-        }
-
-        interaction.guild.channels.fetch().then(() => {
-            const hasOtherTicketChannels = interaction.guild.channels.cache.some(channel =>
-                channel.parentId === parentCategoryId &&
-                channel.id !== ticketChannel?.id &&
-                channel.type === ChannelType.GuildText
-            );
-
-            if (!hasOtherTicketChannels) {
-                const categoryChannel = interaction.guild.channels.cache.get(parentCategoryId);
-                if (categoryChannel?.type === ChannelType.GuildCategory) {
-                    return categoryChannel.delete('Categoria ticket vuota').catch(() => null);
-                }
-            }
-
-            return null;
-        }).catch(() => null);
-    }, 1500);
+    const modalTargetChannelId = interaction.customId.split(':')[1] || interaction.channelId;
+    const ticketChannel = await interaction.guild.channels.fetch(modalTargetChannelId).catch(() => null);
+    const entry = await getTicketEntryByChannel(modalTargetChannelId);
+    await finalizeTicketClose(interaction, entry, ticketChannel, reason);
 }
 
-async function ticketClaim(interaction){
+async function ticketClaim(interaction, ticketChannel = null){
     if (!userIsStaff(interaction)) {
         await replyStaffOnly(interaction);
         return;
     }
 
-    const entry = await getTicketEntryByChannel(interaction.channelId);
+    const isButtonInteraction = interaction.isButton?.() ?? false;
+
+    if (isButtonInteraction) {
+        await interaction.deferUpdate().catch(() => null);
+    }
+
+    const targetChannelId = ticketChannel?.id || interaction.channelId;
+    const entry = await getTicketEntryByChannel(targetChannelId);
     if (!entry) {
-        await interaction.reply({
-            content: 'Impossibile trovare il ticket associato a questo canale.',
+        const payload = {
+            embeds: [buildResponseEmbed({
+                title: 'Ticket',
+                description: 'Impossibile trovare il ticket associato a questo canale.'
+            })],
             flags: MessageFlags.Ephemeral
-        });
+        };
+
+        if (isButtonInteraction) {
+            await interaction.followUp(payload).catch(() => null);
+        } else {
+            await interaction.reply(payload).catch(() => null);
+        }
+        return;
+    }
+
+    if (entry.ticket.claimed_by_id) {
+        const payload = {
+            embeds: [buildResponseEmbed({
+                title: 'Ticket',
+                description: `Questo ticket e gia stato claimato da <@${entry.ticket.claimed_by_id}>.`
+            })],
+            flags: MessageFlags.Ephemeral
+        };
+
+        if (isButtonInteraction) {
+            await interaction.followUp(payload).catch(() => null);
+        } else {
+            await interaction.reply(payload).catch(() => null);
+        }
         return;
     }
 
@@ -376,7 +458,8 @@ async function ticketClaim(interaction){
 	});
     }
 
-    await interaction.channel.permissionOverwrites.set(overwrites);
+    const channelToUpdate = ticketChannel || interaction.channel;
+    await channelToUpdate.permissionOverwrites.set(overwrites);
 
     const remainingActions = ticketActions.filter(action => action.value !== 'ticket:claim');
     const updatedRow = new ActionRowBuilder().addComponents(
@@ -388,16 +471,82 @@ async function ticketClaim(interaction){
         )
     );
 
-    await interaction.message.edit({ components: [updatedRow] }).catch(() => null);
+    // Edita il messaggio del pulsante se è disponibile (button interaction)
+    if (interaction.message) {
+        await interaction.message.edit({ components: [updatedRow] }).catch(() => null);
+    } else {
+        // Se è un comando slash, cercal il messaggio con il pulsante claim nel canale
+        try {
+            const messages = await channelToUpdate.messages.fetch({ limit: 10 });
+            const messageWithClaim = messages.find(msg => 
+                msg.components.length > 0 && 
+                msg.components[0].components.some(btn => btn.customId === 'ticket:claim')
+            );
+            
+            if (messageWithClaim) {
+                await messageWithClaim.edit({ components: [updatedRow] }).catch(() => null);
+            }
+        } catch (err) {
+            // Se non riusciamo a trovare il messaggio, continuiamo comunque
+        }
+    }
 
-    await interaction.reply(`Ticket Claimato da ${interaction.user}`);
+    // Invia il messaggio di conferma nel canale ticket
+    await channelToUpdate.send({
+        embeds: [buildResponseEmbed({
+            title: 'Ticket Claim',
+            description: `Ticket claimato da ${interaction.user}`
+        })]
+    });
+
+    const successPayload = {
+        embeds: [buildResponseEmbed({
+            title: 'Ticket Claim',
+            description: 'Ticket claimato con successo.'
+        })],
+        flags: MessageFlags.Ephemeral
+    };
+
+    if (isButtonInteraction) {
+        await interaction.followUp(successPayload).catch(() => null);
+    } else {
+        await interaction.reply(successPayload).catch(() => null);
+    }
 }
 
+function buildTicketSelectRow(options) {
+    const menuOptions = options.map(option =>
+        new StringSelectMenuOptionBuilder()
+            .setLabel(option.label)
+            .setDescription(option.description)
+            .setValue(option.value)
+    );
 
+    const selectMenu = new StringSelectMenuBuilder()
+        .setCustomId('ticket:select')
+        .setPlaceholder('Seleziona il tipo di ticket')
+        .addOptions(menuOptions);
+
+    return new ActionRowBuilder().addComponents(selectMenu);
+}
+
+function getTicketChannels(guild) {
+    return guild.channels.cache
+        .filter(channel => 
+            channel.name.startsWith('ticket-') && 
+            !channel.isDMBased()
+        )
+        .map(channel => ({
+            name: channel.name,
+            value: channel.id
+        }));
+}
 
 module.exports = {
     ticketCreate,
     ticketClose,
     handleCloseTicketModal,
-    ticketClaim
+    ticketClaim,
+    buildTicketSelectRow,
+    getTicketChannels
 };

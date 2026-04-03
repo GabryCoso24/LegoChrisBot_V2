@@ -1,8 +1,10 @@
-const { EmbedBuilder, ActionRowBuilder, MessageFlags, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, SlashCommandBuilder, ChannelType } = require('discord.js');
+const { EmbedBuilder, SlashCommandBuilder, ChannelType, MessageFlags } = require('discord.js');
 const path = require('node:path');
-const { tickets, ticketOptions, ticketDataFiles, staffRoleId } = require('../../../modules/tickets/constants')
+const { ticketOptions } = require('../../../modules/tickets/constants');
+const { ticketClaim, getTicketChannels, ticketClose } = require('../../../modules/tickets/manageTickets');
 
 async function ticketSetup(interaction, targetChannel) {
+    const { buildTicketSelectRow } = require('../../../modules/tickets/manageTickets');
 
     const mainEmbed = new EmbedBuilder()
         .setColor(0xff7900)
@@ -30,38 +32,82 @@ async function ticketSetup(interaction, targetChannel) {
     });
 }
 
-function buildTicketSelectRow(ticketOptions) {
-    const options = ticketOptions.map(option =>
-        new StringSelectMenuOptionBuilder()
-        .setLabel(option.label)
-        .setDescription(option.description)
-        .setValue(option.value)
-    );
-
-    const selectMenu = new StringSelectMenuBuilder()
-    .setCustomId('ticket:select')
-    .setPlaceholder('Seleziona il tipo di ticket')
-    .addOptions(options);
-
-    return new ActionRowBuilder().addComponents(selectMenu);
-}
-
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('tickets-setup')
-        .setDescription('Esegue il setup dei ticket sul server')
-        .addChannelOption(option =>
-            option
-                .setName('canale')
-                .setDescription('Canale dove inviare il pannello ticket')
-                .addChannelTypes(ChannelType.GuildText)
-                .setRequired(false)
+        .setName('ticket')
+        .setDescription('Gestisce il sistema dei tickets')
+        .addSubcommand(sub =>
+            sub
+                .setName('setup')
+                .setDescription('Esegue il setup dei ticket')
+                .addChannelOption(option =>
+                    option
+                        .setName('canale')
+                        .setDescription('Canale dove inviare il pannello ticket')
+                        .addChannelTypes(ChannelType.GuildText)
+                        .setRequired(false)
+                )
+        )
+        .addSubcommand(sub =>
+            sub
+                .setName('claim')
+                .setDescription('Permette di claimare un ticket anche al di fuori di esso')
+                .addChannelOption(option =>
+                    option
+                        .setName('canale')
+                        .setDescription('Canale ticket da claimare')
+                        .addChannelTypes(ChannelType.GuildText)
+                        .setRequired(false)
+                )
+        )
+        .addSubcommand(sub =>
+            sub
+                .setName('close')
+                .setDescription('Permette di chiudere un ticket anche al di fuori di esso')
+                .addStringOption(option =>
+                    option
+                        .setName('reason')
+                        .setDescription('Motivo della chiusura')
+                        .setRequired(true)
+                )
+                .addChannelOption(option =>
+                    option
+                        .setName('canale')
+                        .setDescription('Canale ticket da chiudere')
+                        .addChannelTypes(ChannelType.GuildText)
+                        .setRequired(false)
+                )
         ),
 
     async execute(interaction) {
-        const targetChannel = interaction.options.getChannel('canale') || interaction.channel;
+        const subcommand = interaction.options.getSubcommand();
 
-        await ticketSetup(interaction, targetChannel);
+        if (subcommand === 'setup') {
+            const targetChannel = interaction.options.getChannel('canale') || interaction.channel;
+            await ticketSetup(interaction, targetChannel);
+        } else if (subcommand === 'claim') {
+            const ticketChannel = interaction.options.getChannel('canale');
+            await ticketClaim(interaction, ticketChannel);
+        } else if (subcommand === 'close'){
+            const ticketChannel = interaction.options.getChannel('canale');
+            const reason = interaction.options.getString('reason', true);
+            await ticketClose(interaction, ticketChannel, reason);
+        }
     },
-    buildTicketSelectRow
+
+    async autocomplete(interaction) {
+        if (interaction.commandName === 'ticket' && interaction.options.getSubcommand() === 'claim') {
+            const focusedValue = interaction.options.getFocused().toLowerCase();
+            
+            // Usa la funzione helper per ottenere i canali ticket
+            const ticketChannels = getTicketChannels(interaction.guild);
+
+            // Filtra per valore fornito
+            const filtered = ticketChannels.filter(ch => 
+                ch.name.toLowerCase().includes(focusedValue)
+            ).slice(0, 25);
+
+            await interaction.respond(filtered);
+        }
+    }
 };
