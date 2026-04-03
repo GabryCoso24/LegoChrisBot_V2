@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, ChannelType, MessageFlags } = require('discord.js');
-const soundboard = require('../../services/soundboardVoiceManager');
+const soundboard = require('../../../modules/soundboard/soundboardVoiceManager');
 const { buildResponseEmbed } = require('../../lib/responseEmbed');
 
 module.exports = {

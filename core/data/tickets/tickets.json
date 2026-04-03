@@ -96,5 +96,19 @@
     "created_at": "03/04/2026, 12:13:53",
     "closed_at": "03/04/2026, 12:14:22",
     "reason": "dsds"
+  },
+  "ticket-991646226674098236-8": {
+    "id": 8,
+    "author_user_id": "991646226674098236",
+    "author_username": "gabrycoso",
+    "category": "Aiuto o info",
+    "channel_id": "1489571259594571818",
+    "claimed_by_id": null,
+    "claimed_by_username": null,
+    "closed_by_id": "991646226674098236",
+    "closed_by_username": "gabrycoso",
+    "created_at": "03/04/2026, 12:24:24",
+    "closed_at": "03/04/2026, 12:24:37",
+    "reason": "dsadasda"
   }
 }

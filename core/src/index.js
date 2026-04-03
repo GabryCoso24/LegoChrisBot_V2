@@ -1,8 +1,11 @@
 const fs = require('fs');
 const path = require('path');
-const { Client, GatewayIntentBits, Collection, REST, Routes, ActivityType, MessageFlags } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, REST, Routes, ActivityType, MessageFlags, Partials } = require('discord.js');
 const config = require('./config/config');
 const { handleTicketInteraction } = require('../modules/tickets/interactionHandler');
+const { handleReactionRoleAdd, handleReactionRoleRemove } = require('../modules/reactionRoles/reactionRolesManager');
+const { handleAiMessage } = require('../modules/ai/aiMessageHandler');
+const { handleTtsMessage } = require('../modules/ttsClassic/ttsMessageHandler');
 
 if (!config.token) {
     throw new Error('Configurazione mancante: imposta TOKEN in src/config/.env');
@@ -12,8 +15,15 @@ const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.GuildMessageReactions,
+        GatewayIntentBits.GuildMembers,
         GatewayIntentBits.MessageContent,
         GatewayIntentBits.GuildVoiceStates
+    ],
+    partials: [
+        Partials.Message,
+        Partials.Channel,
+        Partials.Reaction
     ]
 });
 
@@ -104,6 +114,31 @@ client.on('interactionCreate', async interaction => {
                 flags: MessageFlags.Ephemeral
             }).catch(() => null);
         }
+    }
+});
+
+client.on('messageReactionAdd', async (reaction, user) => {
+    try {
+        await handleReactionRoleAdd(reaction, user);
+    } catch (err) {
+        console.error(err);
+    }
+});
+
+client.on('messageReactionRemove', async (reaction, user) => {
+    try {
+        await handleReactionRoleRemove(reaction, user);
+    } catch (err) {
+        console.error(err);
+    }
+});
+
+client.on('messageCreate', async message => {
+    try {
+        await handleTtsMessage(message);
+        await handleAiMessage(message);
+    } catch (err) {
+        console.error(err);
     }
 });
 // ===== Register slash commands =====

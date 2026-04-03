@@ -284,6 +284,7 @@ async function ticketCreate(interaction) {
             text: "LegoChris Ticket System",
             iconURL: interaction.guild?.iconURL({ dynamic: true, size: 1024 })
         })
+        .setThumbnail(interaction.guild?.iconURL({ dynamic: true, size: 1024 }));
 
     const actions = ticketActions.map(action =>
         new ButtonBuilder()

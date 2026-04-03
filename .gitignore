@@ -1,0 +1,19 @@
+# Environment files
+**/.env
+**/.env.local
+**/.env.development
+**/.env.production
+**/.env.test
+!**/.env.example
+
+# Ticket runtime data
+core/data/tickets/*.json
+core/data/tickets/transcripts/
+
+# AI runtime data
+core/data/ai/*.json
+
+# Python / Node caches
+**/__pycache__/
+**/*.pyc
+**/node_modules/
