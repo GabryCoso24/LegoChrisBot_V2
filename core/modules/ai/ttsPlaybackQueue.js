@@ -50,14 +50,64 @@ async function resolveMentionName(guild, userId) {
     return fetched.displayName || fetched.user?.username || 'utente';
 }
 
+async function resolveRoleName(guild, roleId) {
+    if (!guild || !roleId) {
+        return 'ruolo';
+    }
+
+    const cached = guild.roles?.cache?.get(String(roleId));
+    if (cached) {
+        return cached.name || 'ruolo';
+    }
+
+    const fetched = await guild.roles.fetch(String(roleId)).catch(() => null);
+    if (!fetched) {
+        return 'ruolo';
+    }
+
+    return fetched.name || 'ruolo';
+}
+
+async function resolveChannelName(guild, channelId) {
+    if (!guild || !channelId) {
+        return 'canale';
+    }
+
+    const cached = guild.channels?.cache?.get(String(channelId));
+    if (cached) {
+        return cached.name || 'canale';
+    }
+
+    const fetched = await guild.channels.fetch(String(channelId)).catch(() => null);
+    if (!fetched) {
+        return 'canale';
+    }
+
+    return fetched.name || 'canale';
+}
+
 async function normalizeSpeechText(guild, text) {
     let output = String(text || '');
-    const ids = [...new Set([...output.matchAll(/<@!?(\d+)>/g)].map(match => match[1]))];
+    const userIds = [...new Set([...output.matchAll(/<@!?(\d+)>/g)].map(match => match[1]))];
+    const roleIds = [...new Set([...output.matchAll(/<@&(\d+)>/g)].map(match => match[1]))];
+    const channelIds = [...new Set([...output.matchAll(/<#(\d+)>/g)].map(match => match[1]))];
 
-    for (const userId of ids) {
+    for (const userId of userIds) {
         const name = await resolveMentionName(guild, userId);
         const pattern = new RegExp(`<@!?${userId}>`, 'g');
         output = output.replace(pattern, name);
+    }
+
+    for (const roleId of roleIds) {
+        const name = await resolveRoleName(guild, roleId);
+        const pattern = new RegExp(`<@&${roleId}>`, 'g');
+        output = output.replace(pattern, `ruolo ${name}`);
+    }
+
+    for (const channelId of channelIds) {
+        const name = await resolveChannelName(guild, channelId);
+        const pattern = new RegExp(`<#${channelId}>`, 'g');
+        output = output.replace(pattern, `canale ${name}`);
     }
 
     return output.replace(/\s+/g, ' ').trim();
