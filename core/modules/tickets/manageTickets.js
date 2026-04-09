@@ -164,7 +164,7 @@ async function finalizeTicketClose(interaction, entry, ticketChannel, reason) {
 
     const closePayload = {
         embeds: [buildResponseEmbed({
-            title: 'Ticket Close',
+            title: 'Chiusura ticket',
             description: closeMessage
         })]
     };
@@ -250,7 +250,7 @@ async function ticketCreate(interaction) {
         const existingChannel = await guild.channels.fetch(existingTicket.channel_id).catch(() => null);
         if (existingChannel) {
             await interaction.followUp({
-                content: `You already have an open ticket in ${existingChannel}`,
+                content: `Hai gia un ticket aperto in ${existingChannel}`,
                 flags: MessageFlags.Ephemeral
             });
             return;
@@ -279,7 +279,7 @@ async function ticketCreate(interaction) {
     const ticketEmbed = new EmbedBuilder()
         .setColor(0xff7900)
         .setTitle(`:ticket: Ticket - ${ticketCategory}`)
-        .setDescription(`**${interaction.user} has opened a ticket for ${ticketCategory}**\nExplain your issue/request clearly and in detail. We will respond as soon as possible.`)
+        .setDescription(`**${interaction.user} ha aperto un ticket per ${ticketCategory}**\nDescrivi il tuo problema/richiesta in modo chiaro e dettagliato. Ti risponderemo il prima possibile.`)
         .setFooter({
             text: "LegoChris Ticket System",
             iconURL: interaction.guild?.iconURL({ dynamic: true, size: 1024 })
@@ -323,7 +323,7 @@ async function ticketCreate(interaction) {
 
     // Reply to the user
     await interaction.followUp({
-        content: `Ticket successfully opened in ${ticketChannel}`,
+        content: `Ticket aperto con successo in ${ticketChannel}`,
         flags: MessageFlags.Ephemeral
     });
 }
@@ -344,7 +344,7 @@ async function ticketClose(interaction, ticketChannel = null, reason = null) {
         return;
     }
 
-    const modal = new ModalBuilder().setCustomId(`closeTicketModal:${targetChannelId}`).setTitle('Close Ticket')
+    const modal = new ModalBuilder().setCustomId(`closeTicketModal:${targetChannelId}`).setTitle('Chiudi ticket')
         const reasonInput = new TextInputBuilder()
 			.setCustomId('reasonInput')
 			// Short means a single line of text.

@@ -7,6 +7,10 @@ const { hasStaffRole, hasHighStaffRole, replyRoleDenied } = require('../../lib/p
 async function ticketSetup(interaction, targetChannel) {
     const { buildTicketSelectRow } = require('../../../modules/tickets/manageTickets');
 
+    if (!interaction.deferred && !interaction.replied) {
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    }
+
     const mainEmbed = new EmbedBuilder()
         .setColor(0xff7900)
         .setTitle(':ticket: Ticket')
@@ -19,18 +23,23 @@ async function ticketSetup(interaction, targetChannel) {
     
     const row = buildTicketSelectRow(ticketOptions)
 
-    const ticketImagePath = path.join(__dirname, '../../../data/tickets/Tickets_MT.png');
-    await targetChannel.send({ files: [ticketImagePath] });
+    try {
+        const ticketImagePath = path.join(__dirname, '../../../data/tickets/Tickets_MT.png');
+        await targetChannel.send({ files: [ticketImagePath] });
 
-    await targetChannel.send({
-        embeds: [mainEmbed],
-        components: [row]
-    });
+        await targetChannel.send({
+            embeds: [mainEmbed],
+            components: [row]
+        });
 
-    await interaction.reply({
-        content: `Setup inviato in ${targetChannel}.`,
-        flags: MessageFlags.Ephemeral
-    });
+        await interaction.editReply({
+            content: `Setup inviato in ${targetChannel}.`
+        });
+    } catch {
+        await interaction.editReply({
+            content: '❌ Non sono riuscito a inviare il setup ticket nel canale selezionato. Verifica i permessi del bot e riprova.'
+        });
+    }
 }
 
 module.exports = {
