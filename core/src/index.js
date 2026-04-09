@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { Client, GatewayIntentBits, Collection, REST, Routes, ActivityType, MessageFlags, Partials } = require('discord.js');
 const config = require('./config/config');
+const { runWithEmbedContext } = require('./lib/responseEmbed');
 const { handleTicketInteraction } = require('../modules/tickets/interactionHandler');
 const { handleReactionRoleAdd, handleReactionRoleRemove } = require('../modules/reactionRoles/reactionRolesManager');
 const { handleAiMessage } = require('../modules/ai/aiMessageHandler');
@@ -17,6 +18,7 @@ const client = new Client({
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.GuildMessageReactions,
         GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildPresences,
         GatewayIntentBits.MessageContent,
         GatewayIntentBits.GuildVoiceStates
     ],
@@ -103,7 +105,12 @@ client.on('interactionCreate', async interaction => {
         const command = client.commands.get(interaction.commandName);
         if (!command) return;
 
-        await command.execute(interaction);
+        await runWithEmbedContext(
+            { guildIconUrl: interaction.guild?.iconURL({ dynamic: true, size: 1024 }) ?? null },
+            async () => {
+                await command.execute(interaction);
+            }
+        );
     } catch (err) {
         console.error(err);
         if (interaction.deferred || interaction.replied) {

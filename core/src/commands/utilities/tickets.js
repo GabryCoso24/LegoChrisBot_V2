@@ -1,7 +1,8 @@
 const { EmbedBuilder, SlashCommandBuilder, ChannelType, MessageFlags } = require('discord.js');
 const path = require('node:path');
 const { ticketOptions } = require('../../../modules/tickets/constants');
-const { ticketClaim, getTicketChannels, ticketClose } = require('../../../modules/tickets/manageTickets');
+const { ticketClaim, getTicketChannels, ticketClose, ticketOldAdd, ticketOldAddAll } = require('../../../modules/tickets/manageTickets');
+const { hasStaffRole, hasHighStaffRole, replyRoleDenied } = require('../../lib/permissions');
 
 async function ticketSetup(interaction, targetChannel) {
     const { buildTicketSelectRow } = require('../../../modules/tickets/manageTickets');
@@ -77,10 +78,44 @@ module.exports = {
                         .addChannelTypes(ChannelType.GuildText)
                         .setRequired(false)
                 )
+                )
+                .addSubcommand(sub =>
+                    sub
+                    .setName('old_add')
+                    .setDescription('Registra un ticket legacy e invia il nuovo pannello gestione')
+                    .addChannelOption(option =>
+                        option
+                        .setName('canale')
+                        .setDescription('Canale ticket legacy da registrare')
+                        .addChannelTypes(ChannelType.GuildText)
+                        .setRequired(true)
+                    )
+                )
+                .addSubcommand(sub =>
+                    sub
+                    .setName('old_add_all')
+                    .setDescription('Importa tutti i canali ticket legacy e invia il nuovo pannello gestione')
+                    .addChannelOption(option =>
+                        option
+                        .setName('categoria')
+                        .setDescription('Categoria da filtrare (opzionale)')
+                        .addChannelTypes(ChannelType.GuildCategory)
+                        .setRequired(false)
+                    )
         ),
 
     async execute(interaction) {
         const subcommand = interaction.options.getSubcommand();
+
+        if (subcommand === 'setup') {
+            if (!hasHighStaffRole(interaction)) {
+                await replyRoleDenied(interaction, '❌ Il setup ticket è riservato all\'High Staff.');
+                return;
+            }
+        } else if (!hasStaffRole(interaction)) {
+            await replyRoleDenied(interaction, '❌ I comandi ticket sono riservati allo staff.');
+            return;
+        }
 
         if (subcommand === 'setup') {
             const targetChannel = interaction.options.getChannel('canale') || interaction.channel;
@@ -92,6 +127,12 @@ module.exports = {
             const ticketChannel = interaction.options.getChannel('canale');
             const reason = interaction.options.getString('reason', true);
             await ticketClose(interaction, ticketChannel, reason);
+        } else if (subcommand === 'old_add') {
+            const ticketChannel = interaction.options.getChannel('canale', true);
+            await ticketOldAdd(interaction, ticketChannel);
+        } else if (subcommand === 'old_add_all') {
+            const targetCategory = interaction.options.getChannel('categoria');
+            await ticketOldAddAll(interaction, targetCategory);
         }
     },
 

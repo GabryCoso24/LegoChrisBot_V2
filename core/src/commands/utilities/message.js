@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, ChannelType, MessageFlags } = require('discord.js');
 const { buildResponseEmbed } = require('../../lib/responseEmbed');
+const { hasStaffRole, replyRoleDenied } = require('../../lib/permissions');
 
 function buildReactionRolesMessageEmbed() {
     return buildResponseEmbed({
@@ -35,6 +36,11 @@ module.exports = {
         ),
 
     async execute(interaction) {
+        if (!hasStaffRole(interaction)) {
+            await replyRoleDenied(interaction, '❌ Questo comando è riservato allo staff.');
+            return;
+        }
+
         const tipo = interaction.options.getString('tipo', true);
         const canale = interaction.options.getChannel('canale', true);
 

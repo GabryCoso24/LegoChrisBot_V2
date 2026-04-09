@@ -9,7 +9,7 @@
 # Ticket runtime data
 core/data/tickets/*.json
 core/data/tickets/transcripts/
-
+core/data/talent/
 # AI runtime data
 core/data/ai/*.json
 

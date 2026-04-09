@@ -2,7 +2,7 @@ const { tickets, ticketOptions, ticketDataFiles, staffRoleId, ticketActions } = 
 const fs = require('node:fs/promises')
 const path = require('node:path')
 const { ChannelType, ModalBuilder, TextInputBuilder, LabelBuilder, TextInputStyle, MessageFlags, PermissionsBitField, PermissionFlagsBits, EmbedBuilder, ButtonBuilder, ActionRowBuilder, AttachmentBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder } = require('discord.js')
-const { nextTicketId, saveTicket, getOpenTicketByUser, updateTicket, getTicketEntryByChannel } = require("./storage")
+const { nextTicketId, saveTicket, saveLegacyTicket, getOpenTicketByUser, updateTicket, getTicketEntryByChannel } = require("./storage")
 const { buildResponseEmbed } = require('../../src/lib/responseEmbed')
 
 function userIsStaff(interaction) {
@@ -515,6 +515,160 @@ async function ticketClaim(interaction, ticketChannel = null){
     }
 }
 
+async function importLegacyTicketChannel(interaction, targetChannel) {
+    const existingEntry = await getTicketEntryByChannel(targetChannel.id);
+    let wasRegistered = false;
+
+    if (!existingEntry) {
+        const memberOverwrites = [...targetChannel.permissionOverwrites.cache.values()]
+            .filter(overwrite => overwrite.type === 1)
+            .map(overwrite => overwrite.id);
+
+        let authorMember = null;
+        for (const memberId of memberOverwrites) {
+            if (memberId === interaction.client.user.id) continue;
+            const member = await interaction.guild.members.fetch(memberId).catch(() => null);
+            if (!member || member.user.bot) continue;
+            authorMember = member;
+            break;
+        }
+
+        const ticketId = await nextTicketId();
+        const authorId = authorMember?.id || interaction.user.id;
+        const authorUsername = authorMember?.user?.username || interaction.user.username;
+        const categoryName = targetChannel.parent?.name || 'Legacy Ticket';
+        const ticketKey = `legacy-ticket-${authorId}-${ticketId}`;
+
+        await saveLegacyTicket(ticketKey, {
+            id: ticketId,
+            author_user_id: authorId,
+            author_username: authorUsername,
+            category: categoryName,
+            channel_id: targetChannel.id,
+            claimed_by_id: null,
+            claimed_by_username: null,
+            closed_by_id: null,
+            closed_by_username: null,
+            created_at: new Date().toLocaleString('it-IT', { hour12: false }),
+            closed_at: null,
+            reason: null
+        });
+
+        wasRegistered = true;
+    }
+
+    const actions = ticketActions.map(action =>
+        new ButtonBuilder()
+            .setCustomId(action.value)
+            .setLabel(action.label)
+            .setStyle(action.style)
+    );
+    const row = new ActionRowBuilder().addComponents(actions);
+
+    const managementEmbed = new EmbedBuilder()
+        .setColor(0xff7900)
+        .setTitle(':ticket: Ticket - Gestione')
+        .setDescription('Questo ticket e stato importato dalla versione precedente. Usa i pulsanti qui sotto per gestirlo (claim/chiudi).')
+        .setFooter({
+            text: 'LegoChris Ticket System',
+            iconURL: interaction.guild?.iconURL({ dynamic: true, size: 1024 })
+        })
+        .setThumbnail(interaction.guild?.iconURL({ dynamic: true, size: 1024 }) ?? null);
+
+    await targetChannel.send({
+        embeds: [managementEmbed],
+        components: [row]
+    });
+
+    return { wasRegistered };
+}
+
+async function ticketOldAdd(interaction, ticketChannel = null) {
+    if (!userIsStaff(interaction)) {
+        await replyStaffOnly(interaction);
+        return;
+    }
+
+    const targetChannel = ticketChannel || interaction.channel;
+    if (!targetChannel || targetChannel.type !== ChannelType.GuildText) {
+        await interaction.reply({
+            embeds: [buildResponseEmbed({
+                title: 'Ticket Legacy Import',
+                description: 'Specifica un canale testuale valido da importare.'
+            })],
+            flags: MessageFlags.Ephemeral
+        });
+        return;
+    }
+
+    const result = await importLegacyTicketChannel(interaction, targetChannel);
+
+    await interaction.reply({
+        embeds: [buildResponseEmbed({
+            title: 'Ticket Legacy Import',
+            description: result.wasRegistered
+                ? `Ticket legacy registrato e pannello gestione inviato in ${targetChannel}.`
+                : `Il canale era gia registrato. Ho comunque inviato un nuovo pannello gestione in ${targetChannel}.`
+        })]
+    });
+}
+
+async function ticketOldAddAll(interaction, targetCategory = null) {
+    if (!userIsStaff(interaction)) {
+        await replyStaffOnly(interaction);
+        return;
+    }
+
+    await interaction.deferReply().catch(() => null);
+
+    const channels = interaction.guild.channels.cache
+        .filter(channel => channel.type === ChannelType.GuildText)
+        .filter(channel => !targetCategory || channel.parentId === targetCategory.id)
+        .filter(channel => channel.name.toLowerCase().startsWith('ticket-'));
+
+    if (channels.size === 0) {
+        await interaction.editReply({
+            embeds: [buildResponseEmbed({
+                title: 'Ticket Legacy Import',
+                description: targetCategory
+                    ? `Nessun canale ticket trovato nella categoria ${targetCategory}.`
+                    : 'Nessun canale ticket legacy trovato da importare.'
+            })]
+        }).catch(() => null);
+        return;
+    }
+
+    let imported = 0;
+    let alreadyRegistered = 0;
+    let failed = 0;
+
+    for (const channel of channels.values()) {
+        try {
+            const result = await importLegacyTicketChannel(interaction, channel);
+            if (result.wasRegistered) {
+                imported += 1;
+            } else {
+                alreadyRegistered += 1;
+            }
+        } catch {
+            failed += 1;
+        }
+    }
+
+    await interaction.editReply({
+        embeds: [buildResponseEmbed({
+            title: 'Ticket Legacy Import',
+            description: 'Import legacy completato.',
+            fields: [
+                { name: 'Canali trovati', value: String(channels.size), inline: true },
+                { name: 'Nuovi registrati', value: String(imported), inline: true },
+                { name: 'Gia registrati', value: String(alreadyRegistered), inline: true },
+                { name: 'Falliti', value: String(failed), inline: true }
+            ]
+        })]
+    }).catch(() => null);
+}
+
 function buildTicketSelectRow(options) {
     const menuOptions = options.map(option =>
         new StringSelectMenuOptionBuilder()
@@ -548,6 +702,8 @@ module.exports = {
     ticketClose,
     handleCloseTicketModal,
     ticketClaim,
+    ticketOldAdd,
+    ticketOldAddAll,
     buildTicketSelectRow,
     getTicketChannels
 };

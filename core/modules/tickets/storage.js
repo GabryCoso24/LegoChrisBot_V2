@@ -5,6 +5,7 @@ const { ticketDataFiles } = require('./constants');
 const dataPaths = {
   ids: path.resolve(process.cwd(), ticketDataFiles.id_counter),
   tickets: path.resolve(process.cwd(), ticketDataFiles.tickets),
+  legacy: path.resolve(process.cwd(), ticketDataFiles.legacy_tickets || './data/tickets/legacy_tickets.json'),
 };
 
 async function readJson(filePath, fallback = {}) {
@@ -39,22 +40,43 @@ async function saveTicket(ticketKey, ticketData) {
   return allTickets[ticketKey];
 }
 
+async function saveLegacyTicket(ticketKey, ticketData) {
+  const allTickets = await readJson(dataPaths.legacy, {});
+  allTickets[ticketKey] = ticketData;
+  await writeJson(dataPaths.legacy, allTickets);
+  return allTickets[ticketKey];
+}
+
 async function getTicket(ticketKey) {
   const allTickets = await readJson(dataPaths.tickets, {});
-  return allTickets[ticketKey] ?? null;
+  if (allTickets[ticketKey]) return allTickets[ticketKey];
+
+  const legacyTickets = await readJson(dataPaths.legacy, {});
+  return legacyTickets[ticketKey] ?? null;
 }
 
 async function getTicketByChannel(channelId) {
   const allTickets = await readJson(dataPaths.tickets, {});
-  return Object.values(allTickets).find(t => t.channel_id === channelId) ?? null;
+  const found = Object.values(allTickets).find(t => t.channel_id === channelId);
+  if (found) return found;
+
+  const legacyTickets = await readJson(dataPaths.legacy, {});
+  return Object.values(legacyTickets).find(t => t.channel_id === channelId) ?? null;
 }
 
 async function getTicketEntryByChannel(channelId) {
   const allTickets = await readJson(dataPaths.tickets, {});
   const entry = Object.entries(allTickets).find(([, t]) => t.channel_id === channelId);
-  if (!entry) return null;
-  const [key, ticket] = entry;
-  return { key, ticket };
+  if (entry) {
+    const [key, ticket] = entry;
+    return { key, ticket, source: 'tickets' };
+  }
+
+  const legacyTickets = await readJson(dataPaths.legacy, {});
+  const legacyEntry = Object.entries(legacyTickets).find(([, t]) => t.channel_id === channelId);
+  if (!legacyEntry) return null;
+  const [key, ticket] = legacyEntry;
+  return { key, ticket, source: 'legacy' };
 }
 
 async function getOpenTicketByUser(userId) {
@@ -64,15 +86,23 @@ async function getOpenTicketByUser(userId) {
 
 async function updateTicket(ticketKey, patch) {
   const allTickets = await readJson(dataPaths.tickets, {});
-  if (!allTickets[ticketKey]) return null;
-  allTickets[ticketKey] = { ...allTickets[ticketKey], ...patch };
-  await writeJson(dataPaths.tickets, allTickets);
-  return allTickets[ticketKey];
+  if (allTickets[ticketKey]) {
+    allTickets[ticketKey] = { ...allTickets[ticketKey], ...patch };
+    await writeJson(dataPaths.tickets, allTickets);
+    return allTickets[ticketKey];
+  }
+
+  const legacyTickets = await readJson(dataPaths.legacy, {});
+  if (!legacyTickets[ticketKey]) return null;
+  legacyTickets[ticketKey] = { ...legacyTickets[ticketKey], ...patch };
+  await writeJson(dataPaths.legacy, legacyTickets);
+  return legacyTickets[ticketKey];
 }
 
 module.exports = {
   nextTicketId,
   saveTicket,
+  saveLegacyTicket,
   getTicket,
   getTicketByChannel,
   getTicketEntryByChannel,

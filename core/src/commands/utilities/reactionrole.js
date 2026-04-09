@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, MessageFlags, PermissionsBitField } = require('discord.js');
 const { buildResponseEmbed } = require('../../lib/responseEmbed');
 const { setReactionRole, removeReactionRole } = require('../../../modules/reactionRoles/reactionRolesManager');
+const { hasStaffRole, replyRoleDenied } = require('../../lib/permissions');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -48,6 +49,11 @@ module.exports = {
         ),
 
     async execute(interaction) {
+        if (!hasStaffRole(interaction)) {
+            await replyRoleDenied(interaction, '❌ Questo comando è riservato allo staff.');
+            return;
+        }
+
         if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
             await interaction.reply({
                 embeds: [buildResponseEmbed({

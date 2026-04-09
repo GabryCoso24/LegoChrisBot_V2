@@ -25,6 +25,7 @@ module.exports = {
     activityText: process.env.ACTIVITY_TEXT || '🧱 | I Mattoncini di LegoChris',
 
     staffRoleId: process.env.STAFF_ROLE_ID || null,
+    highStaffRoleId: process.env.HIGH_STAFF_ROLE_ID || null,
 
     prefix: "!",
 

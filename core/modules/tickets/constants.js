@@ -62,7 +62,8 @@ const ticketActions = [
 
 const ticketDataFiles = {
     tickets: "./data/tickets/tickets.json",
-    id_counter: "./data/tickets/ids.json"
+    id_counter: "./data/tickets/ids.json",
+    legacy_tickets: "./data/tickets/legacy_tickets.json"
 };
 
 const staffRoleId = config.staffRoleId;
