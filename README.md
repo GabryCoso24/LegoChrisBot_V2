@@ -59,6 +59,7 @@ ACTIVITY_TYPE=WATCHING
 ACTIVITY_TEXT=🧱 | I Mattoncini di LegoChris
 
 STAFF_ROLE_ID=
+HIGH_STAFF_ROLE_ID=
 ```
 
 4. Start the bot.
@@ -83,137 +84,214 @@ core/
 
 ## Available Commands
 
-### `ai`
-Manages the AI assistant in chat and voice.
+Below is the complete list of active slash commands, including usage and access rules.
 
-- `/ai join`: the bot joins your voice channel and enables AI voice mode by default.
-    - You must already be in a voice channel.
-- `/ai mode`: enables or disables AI voice mode in the server.
-    - Works only after `/ai join`.
-    - When enabled, pinging the bot in chat returns a text response and a spoken voice response.
+### Permissions: Who Can Use What
 
-Usage example:
+- Everyone: any server member.
+- Staff: users with the role configured in `STAFF_ROLE_ID`.
+- High Staff: users with the role configured in `HIGH_STAFF_ROLE_ID`.
+- Discord permissions: some commands also require native Discord permissions (for example, `Ban Members`, `Manage Messages`).
+
+Important: when a command has both a Discord permission requirement and a Staff/High Staff role check, both must pass.
+
+### Moderation
+
+#### `/ban`
+Who can use it: Staff + `Ban Members`
+
+- `/ban user utente:<utente> [motivo:<testo>]`
+
+Example:
+
+```text
+/ban user utente:@User motivo:Spam
+```
+
+#### `/mute`
+Who can use it: Staff + `Moderate Members` (plus voice mute handling)
+
+- `/mute text utente:<utente> durata:<durata> [motivo:<testo>]`
+- `/mute voice utente:<utente> durata:<durata> [motivo:<testo>]`
+
+Supported duration format: `1d2h30m`, `45m`, `10s`, `2w`.
+
+#### `/timeout`
+Who can use it: Staff + `Moderate Members`
+
+- `/timeout utente:<utente> durata:<durata> [motivo:<testo>]`
+
+Applies text timeout and, if the user is in voice, voice mute as well.
+
+#### `/unmute`
+Who can use it: Staff + `Moderate Members`
+
+- `/unmute text utente:<utente> [motivo:<testo>]`
+- `/unmute voice utente:<utente> [motivo:<testo>]`
+
+#### `/untimeout`
+Who can use it: Staff + `Moderate Members`
+
+- `/untimeout utente:<utente> [motivo:<testo>]`
+
+Removes both text timeout and voice mute.
+
+#### `/unban`
+Who can use it: Staff + `Ban Members`
+
+- `/unban user_id:<id_utente> [motivo:<testo>]`
+
+#### `/tempban`
+Who can use it: Staff + `Ban Members`
+
+- `/tempban add utente:<utente> durata:<durata> [motivo:<testo>]`
+- `/tempban modify user_id:<id_utente> durata:<durata>`
+- `/tempban remove user_id:<id_utente>`
+- `/tempban list`
+
+Manages temporary bans with automatic expiration.
+
+#### `/purge`
+Who can use it: Staff + `Manage Messages`
+
+Available subcommands:
+
+- `/purge all`
+- `/purge any [count:<1-1000>]`
+- `/purge bots [count:<1-1000>]`
+- `/purge humans [count:<1-1000>]`
+- `/purge embeds [count:<1-1000>]`
+- `/purge images [count:<1-1000>]`
+- `/purge links [count:<1-1000>]`
+- `/purge invites [count:<1-1000>]`
+- `/purge mentions [count:<1-1000>]`
+- `/purge text [count:<1-1000>]`
+- `/purge user utente:<utente> [count:<1-1000>]`
+- `/purge match text:<testo> [count:<1-1000>]`
+- `/purge not text:<testo> [count:<1-1000>]`
+- `/purge startswith text:<testo> [count:<1-1000>]`
+- `/purge endswith text:<testo> [count:<1-1000>]`
+- `/purge after message:<id_o_link> [count:<1-1000>]`
+- `/purge periodo periodo_di_tempo:<durata>`
+- `/purge fino_a data:<YYYY-MM-DD oppure YYYY-MM-DD HH:mm>`
+
+#### `/rules`
+Who can use it: Staff + `Manage Server`
+
+- `/rules add tipo:<staff|team|server> testo:<testo>`
+- `/rules remove tipo:<staff|team|server> indice:<numero>`
+- `/rules edit tipo:<staff|team|server> indice:<numero> testo:<testo>`
+- `/rules create tipo:<staff|team|server> testo:<multilinea_o_separato_da_|>`
+- `/rules list tipo:<staff|team|server>`
+- `/rules send tipo:<staff|team|server> canale:<canale_testo> [titolo:<titolo>]`
+
+### Utility and Community
+
+#### `/ai`
+Who can use it: Everyone
+
+- `/ai join`
+- `/ai mode`
+
+Typical usage:
 
 ```text
 /ai join
 /ai mode
 ```
 
-### `tts`
-Manages classic TTS and text-to-audio generation.
+#### `/tts`
+Who can use it: Everyone
 
-- `/tts text testo:<text>`: generates an audio file from the provided text and sends it as an attachment.
-- `/tts join`: the bot joins your voice channel and enables the TTS reader.
-    - You must already be in a voice channel.
-- `/tts mode`: enables or disables TTS reading in the current voice channel.
-    - Works only after `/tts join`.
-- `/tts leave`: disables the TTS reader and leaves the voice channel.
-- `/tts status`: shows the current TTS reader status.
+- `/tts text testo:<testo>`
+- `/tts join`
+- `/tts mode`
+- `/tts leave`
+- `/tts status`
 
-How the TTS reader works:
-
-- it only reads messages from users present in the linked voice channel;
-- it only reads users who are self muted or server muted;
-- it ignores bots, long links, and empty messages.
-
-Usage examples:
+Typical usage:
 
 ```text
-/tts text testo:Hello everyone
+/tts text testo:Ciao a tutti
 /tts join
 /tts mode
 /tts status
 /tts leave
 ```
 
-### `ticket`
-Manages the ticket system.
+#### `/soundboard`
+Who can use it: Everyone
 
-- `/ticket setup [canale]`: sends the ticket panel to the selected channel or the current channel.
-    - Publishes the panel image and the dropdown menu with categories.
-- `/ticket claim [canale]`: claims a ticket even outside the ticket channel.
-    - The `canale` parameter is optional.
-    - If the ticket is already claimed, the bot reports it.
-- `/ticket close reason:<reason> [canale]`: closes a ticket and generates the transcript.
-    - The `reason` parameter is required.
-    - The `canale` parameter is optional.
-    - The transcript is saved in `core/data/tickets/transcripts/` and sent to the configured log channel.
+- `/soundboard playsound nome:<nome_suono> [canale:<canale_vocale>]`
+- `/soundboard skip`
+- `/soundboard stop`
+- `/soundboard queue`
+- `/soundboard listsounds`
 
-Permissions and behavior:
+Audio files must be stored in `core/data/soundboard/`.
 
-- only staff can use `claim` and `close`;
-- `setup` can be used in the current channel or in a specified text channel;
-- the ticket channel is deleted after closing;
-- if it is the last ticket in its parent category, the empty category is also removed.
+#### `/fun`
+Who can use it: Everyone
 
-Usage examples:
+- `/fun coinflip scelta:<testa|croce>`
+- `/fun randomfact`
+- `/fun rps scelta:<sasso|carta|forbici>`
 
-```text
-/ticket setup canale:#ticket-opening
-/ticket claim canale:#ticket-mario
-/ticket close reason:Issue resolved canale:#ticket-mario
-```
+#### `/profile`
+Who can use it: Everyone
 
-### `reactionrole`
-Manages reaction roles on the selected message.
+- `/profile userinfo [utente:<utente>]`
+- `/profile id utente:<utente>`
 
-- `/reactionrole set message_id:<id> emoji:<emoji> role:<role>`: links a reaction to a role.
-- `/reactionrole remove message_id:<id> emoji:<emoji>`: removes the link.
+#### `/message`
+Who can use it: Staff
 
-Operational requirements:
-
-- the bot must have the `Manage Roles` permission;
-- the target message must be reachable in the current channel;
-- when a user reacts or removes the reaction, the role is automatically added or removed.
-
-Usage examples:
-
-```text
-/reactionrole set message_id:123456789012345678 emoji:🔥 role:@Events
-/reactionrole remove message_id:123456789012345678 emoji:🔥
-```
-
-### `message`
-Sends a predefined embed message to a specific text channel.
-
-- `/message tipo:reaction_roles canale:<channel>`: sends the reaction roles embed message.
+- `/message tipo:<reaction_roles> canale:<canale_testo>`
 
 At the moment, the only available type is `reaction_roles`.
 
-Usage example:
+#### `/reactionrole`
+Who can use it: Staff
 
-```text
-/message tipo:reaction_roles canale:#announcements
-```
+- `/reactionrole set message_id:<id_messaggio> emoji:<emoji> role:<ruolo>`
+- `/reactionrole remove message_id:<id_messaggio> emoji:<emoji>`
 
-### `soundboard`
-Manages the audio soundboard.
+Technical requirement: the bot must have the Discord `Manage Roles` permission.
 
-- `/soundboard playsound nome:<sound> [canale]`: adds a sound to the queue and starts playback.
-    - `canale` is optional.
-    - If omitted, the bot uses your current voice channel.
-    - The name can be provided with or without an extension.
-- `/soundboard skip`: skips the currently playing sound.
-- `/soundboard stop`: stops playback and clears the queue.
-- `/soundboard queue`: shows the current track and queued sounds.
-- `/soundboard listsounds`: lists all available sounds.
+#### `/roles`
+Who can use it: High Staff + `Manage Roles`
 
-Audio file notes:
+- `/roles add ruoli:<menzioni_ruoli> [membro:<utente>] [tutti:<true|false>]`
+- `/roles remove membro:<utente> ruolo:<ruolo>`
 
-- files must be placed in `core/data/soundboard/`;
-- only `.mp3` and `.wav` are supported;
-- some names may be hidden by the system.
+`add` supports bulk assignment or single-user assignment.
 
-Usage examples:
+#### `/talent`
+Who can use it: High Staff
 
-```text
-/soundboard playsound nome:airhorn
-/soundboard playsound nome:airhorn canale:#voice-1
-/soundboard queue
-/soundboard skip
-/soundboard stop
-/soundboard listsounds
-```
+- `/talent register utente:<utente> ruolo:<host|judge|participant> [anche_giudice:<true|false>]`
+- `/talent add_points utente:<utente> punti:<numero>`
+- `/talent edit_role utente:<utente> ruolo:<host|judge|participant> [anche_giudice:<true|false>]`
+- `/talent leaderboard`
+- `/talent list`
+
+Note: `add_points` also has an internal check (judge/host with judge permission/admin), in addition to the High Staff check.
+
+#### `/ticket`
+Who can use it:
+
+- `setup`: High Staff
+- `claim`, `close`, `old_add`, `old_add_all`: Staff
+
+Subcommands:
+
+- `/ticket setup [canale:<canale_testo>]`
+- `/ticket claim [canale:<canale_testo>]`
+- `/ticket close reason:<motivo> [canale:<canale_testo>]`
+- `/ticket old_add canale:<canale_testo>`
+- `/ticket old_add_all [categoria:<categoria>]`
+
+`claim` and `close` can also be used from outside the ticket channel by specifying `canale`.
 
 ## Automatic Bot Behavior
 
@@ -251,6 +329,7 @@ Main settings:
 - `ACTIVITY_TYPE`: presence activity type.
 - `ACTIVITY_TEXT`: presence activity text.
 - `STAFF_ROLE_ID`: staff role used by the ticket system.
+- `HIGH_STAFF_ROLE_ID`: high staff role used by high privilege commands (roles, talent, ticket setup).
 
 ## Technical Notes
 
