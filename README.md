@@ -347,4 +347,4 @@ If you find a problem, open an issue in the repository.
 
 ---
 
-LegoChris Bot V2 © 2026
+LegoChris Bot V2 © 2026 by gabrycoso
