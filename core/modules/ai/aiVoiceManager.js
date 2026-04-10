@@ -16,6 +16,52 @@ const {
 const guildStates = new Map();
 const tempDir = path.resolve(process.cwd(), 'data', 'ai', 'tts');
 
+function isConnectionReady(connection, expectedChannelId) {
+    if (!connection) {
+        return false;
+    }
+
+    if (connection.state.status === VoiceConnectionStatus.Destroyed) {
+        return false;
+    }
+
+    if (expectedChannelId && connection.joinConfig.channelId !== expectedChannelId) {
+        return false;
+    }
+
+    return connection.state.status === VoiceConnectionStatus.Ready;
+}
+
+async function recoverConnection(connection) {
+    if (!connection || connection.state.status === VoiceConnectionStatus.Destroyed) {
+        return false;
+    }
+
+    if (connection.state.status === VoiceConnectionStatus.Ready) {
+        return true;
+    }
+
+    if (connection.state.status === VoiceConnectionStatus.Disconnected) {
+        try {
+            await Promise.race([
+                entersState(connection, VoiceConnectionStatus.Signalling, 4_000),
+                entersState(connection, VoiceConnectionStatus.Connecting, 4_000)
+            ]);
+        } catch {
+            connection.destroy();
+            return false;
+        }
+    }
+
+    try {
+        await entersState(connection, VoiceConnectionStatus.Ready, 10_000);
+        return true;
+    } catch {
+        connection.destroy();
+        return false;
+    }
+}
+
 function getState(guildId) {
     if (!guildStates.has(guildId)) {
         const player = createAudioPlayer({
@@ -29,6 +75,8 @@ function getState(guildId) {
             player,
             currentChannelId: null
         };
+
+        state.connectionCleanup = null;
 
         player.on(AudioPlayerStatus.Idle, () => {
             state.currentChannelId = state.connection?.joinConfig?.channelId || state.currentChannelId;
@@ -49,8 +97,17 @@ async function connectToChannel(interaction, channel) {
     const state = getState(guildId);
     const adapterCreator = interaction.voiceAdapterCreator || interaction.guild?.voiceAdapterCreator;
 
+    if (state.connectionCleanup) {
+        state.connectionCleanup();
+        state.connectionCleanup = null;
+    }
+
     if (state.connection && state.connection.joinConfig.channelId !== channel.id) {
         state.connection.destroy();
+        state.connection = null;
+    }
+
+    if (state.connection && !(await recoverConnection(state.connection))) {
         state.connection = null;
     }
 
@@ -65,6 +122,41 @@ async function connectToChannel(interaction, channel) {
         state.connection.subscribe(state.player);
         state.currentChannelId = channel.id;
         await entersState(state.connection, VoiceConnectionStatus.Ready, 20_000);
+    }
+
+    const onStateChange = (_, newState) => {
+        if (newState.status === VoiceConnectionStatus.Destroyed) {
+            state.connection = null;
+            return;
+        }
+
+        if (newState.status === VoiceConnectionStatus.Disconnected) {
+            void recoverConnection(state.connection).then(ok => {
+                if (!ok && state.connection?.state?.status === VoiceConnectionStatus.Destroyed) {
+                    state.connection = null;
+                }
+            });
+        }
+    };
+
+    state.connection.on('stateChange', onStateChange);
+    state.connectionCleanup = () => {
+        state.connection?.off('stateChange', onStateChange);
+    };
+
+    if (!isConnectionReady(state.connection, channel.id)) {
+        const recovered = await recoverConnection(state.connection);
+        if (!recovered) {
+            state.connection = joinVoiceChannel({
+                channelId: channel.id,
+                guildId,
+                adapterCreator,
+                selfDeaf: true
+            });
+
+            state.connection.subscribe(state.player);
+            await entersState(state.connection, VoiceConnectionStatus.Ready, 20_000);
+        }
     }
 
     return state;
@@ -113,6 +205,11 @@ function disconnect(guildId) {
     const state = guildStates.get(guildId);
     if (!state) {
         return false;
+    }
+
+    if (state.connectionCleanup) {
+        state.connectionCleanup();
+        state.connectionCleanup = null;
     }
 
     if (state.connection) {
