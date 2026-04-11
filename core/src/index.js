@@ -59,6 +59,8 @@ const activityTypeMap = {
 };
 
 function applyPresence() {
+    if (!client.user) return;
+
     const status = ['online', 'idle', 'dnd', 'invisible'].includes(config.presenceStatus)
         ? config.presenceStatus
         : 'online';
@@ -79,11 +81,20 @@ for (const file of commandFiles) {
 }
 
 // ===== Ready event =====
-client.once('clientReady', async () => {
+client.on('clientReady', async () => {
     applyPresence();
     console.log(`Bot online as ${client.user.tag}`);
 
     await registerCommands();
+});
+
+// Re-apply presence after gateway resume/reconnect events.
+client.on('shardResume', () => {
+    setTimeout(() => applyPresence(), 1500);
+});
+
+client.on('shardReady', () => {
+    setTimeout(() => applyPresence(), 1500);
 });
 
 // ===== Interaction event =====
