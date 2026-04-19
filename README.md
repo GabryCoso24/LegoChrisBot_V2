@@ -2,6 +2,18 @@
 
 Discord bot with AI, TTS, ticket system, reaction roles, and soundboard features.
 
+## Migration to JavaScript-Only Backend
+
+As of April 2026, all backend code generation and runtime logic have been migrated to JavaScript only. All Python code and helpers have been fully removed from the backend. All generated files in `/core/generated/` are now valid JavaScript modules, and the bot runtime is fully Node.js/Discord.js based.
+
+If you encounter any legacy references to Python, please open an issue.
+
+## Recent Updates (April 2026)
+
+- **Code Generation:** All generated commands and modules are now valid JavaScript only (no more Python code in generated files).
+- **EmbedBuilder Import Fix:** The generated code now uses the correct import: `const { EmbedBuilder } = require('discord.js');`.
+- **Bugfix:** Various improvements and bugfixes for compatibility with the latest Discord.js and Node.js versions.
+
 ## Features
 
 - AI chat: responds to messages that mention the bot.
