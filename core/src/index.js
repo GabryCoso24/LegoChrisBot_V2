@@ -31,11 +31,14 @@ const client = new Client({
 
 // ===== Load commands dynamically =====
 client.commands = new Collection();
+
 const commandsPath = path.join(__dirname, 'commands');
-const getCommandFiles = dir => {
+const generatedPath = path.join(__dirname, 'generated');
+
+function getCommandFiles(dir) {
+    if (!fs.existsSync(dir)) return [];
     const entries = fs.readdirSync(dir, { withFileTypes: true });
     const files = [];
-
     for (const entry of entries) {
         const fullPath = path.join(dir, entry.name);
         if (entry.isDirectory()) {
@@ -44,11 +47,13 @@ const getCommandFiles = dir => {
             files.push(fullPath);
         }
     }
-
     return files;
-};
+}
 
-const commandFiles = getCommandFiles(commandsPath);
+const commandFiles = [
+    ...getCommandFiles(commandsPath),
+    ...getCommandFiles(generatedPath)
+];
 
 const activityTypeMap = {
     PLAYING: ActivityType.Playing,
