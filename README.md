@@ -80,6 +80,7 @@ ACTIVITY_TEXT=🧱 | I Mattoncini di LegoChris
 
 STAFF_ROLE_ID=
 HIGH_STAFF_ROLE_ID=
+HIGH_STAFF_ROLE_ID=
 ```
 
 4. Start the bot.
@@ -231,6 +232,116 @@ Who can use it: Everyone
 - `/ai mode`
 
 Typical usage:
+Below is the complete list of active slash commands, including usage and access rules.
+
+### Permissions: Who Can Use What
+
+- Everyone: any server member.
+- Staff: users with the role configured in `STAFF_ROLE_ID`.
+- High Staff: users with the role configured in `HIGH_STAFF_ROLE_ID`.
+- Discord permissions: some commands also require native Discord permissions (for example, `Ban Members`, `Manage Messages`).
+
+Important: when a command has both a Discord permission requirement and a Staff/High Staff role check, both must pass.
+
+### Moderation
+
+#### `/ban`
+Who can use it: Staff + `Ban Members`
+
+- `/ban user utente:<utente> [motivo:<testo>]`
+
+Example:
+
+```text
+/ban user utente:@User motivo:Spam
+```
+
+#### `/mute`
+Who can use it: Staff + `Moderate Members` (plus voice mute handling)
+
+- `/mute text utente:<utente> durata:<durata> [motivo:<testo>]`
+- `/mute voice utente:<utente> durata:<durata> [motivo:<testo>]`
+
+Supported duration format: `1d2h30m`, `45m`, `10s`, `2w`.
+
+#### `/timeout`
+Who can use it: Staff + `Moderate Members`
+
+- `/timeout utente:<utente> durata:<durata> [motivo:<testo>]`
+
+Applies text timeout and, if the user is in voice, voice mute as well.
+
+#### `/unmute`
+Who can use it: Staff + `Moderate Members`
+
+- `/unmute text utente:<utente> [motivo:<testo>]`
+- `/unmute voice utente:<utente> [motivo:<testo>]`
+
+#### `/untimeout`
+Who can use it: Staff + `Moderate Members`
+
+- `/untimeout utente:<utente> [motivo:<testo>]`
+
+Removes both text timeout and voice mute.
+
+#### `/unban`
+Who can use it: Staff + `Ban Members`
+
+- `/unban user_id:<id_utente> [motivo:<testo>]`
+
+#### `/tempban`
+Who can use it: Staff + `Ban Members`
+
+- `/tempban add utente:<utente> durata:<durata> [motivo:<testo>]`
+- `/tempban modify user_id:<id_utente> durata:<durata>`
+- `/tempban remove user_id:<id_utente>`
+- `/tempban list`
+
+Manages temporary bans with automatic expiration.
+
+#### `/purge`
+Who can use it: Staff + `Manage Messages`
+
+Available subcommands:
+
+- `/purge all`
+- `/purge any [count:<1-1000>]`
+- `/purge bots [count:<1-1000>]`
+- `/purge humans [count:<1-1000>]`
+- `/purge embeds [count:<1-1000>]`
+- `/purge images [count:<1-1000>]`
+- `/purge links [count:<1-1000>]`
+- `/purge invites [count:<1-1000>]`
+- `/purge mentions [count:<1-1000>]`
+- `/purge text [count:<1-1000>]`
+- `/purge user utente:<utente> [count:<1-1000>]`
+- `/purge match text:<testo> [count:<1-1000>]`
+- `/purge not text:<testo> [count:<1-1000>]`
+- `/purge startswith text:<testo> [count:<1-1000>]`
+- `/purge endswith text:<testo> [count:<1-1000>]`
+- `/purge after message:<id_o_link> [count:<1-1000>]`
+- `/purge periodo periodo_di_tempo:<durata>`
+- `/purge fino_a data:<YYYY-MM-DD oppure YYYY-MM-DD HH:mm>`
+
+#### `/rules`
+Who can use it: Staff + `Manage Server`
+
+- `/rules add tipo:<staff|team|server> testo:<testo>`
+- `/rules remove tipo:<staff|team|server> indice:<numero>`
+- `/rules edit tipo:<staff|team|server> indice:<numero> testo:<testo>`
+- `/rules create tipo:<staff|team|server> testo:<multilinea_o_separato_da_|>`
+- `/rules list tipo:<staff|team|server>`
+- `/rules send tipo:<staff|team|server> canale:<canale_testo> [titolo:<titolo>]`
+
+### Utility and Community
+
+#### `/ai`
+Who can use it: Everyone
+
+- `/ai join`
+- `/ai mode`
+
+Typical usage:
 
 ```text
 /ai join
@@ -247,8 +358,19 @@ Who can use it: Everyone
 - `/tts status`
 
 Typical usage:
+#### `/tts`
+Who can use it: Everyone
+
+- `/tts text testo:<testo>`
+- `/tts join`
+- `/tts mode`
+- `/tts leave`
+- `/tts status`
+
+Typical usage:
 
 ```text
+/tts text testo:Ciao a tutti
 /tts text testo:Ciao a tutti
 /tts join
 /tts mode
@@ -256,6 +378,34 @@ Typical usage:
 /tts leave
 ```
 
+#### `/soundboard`
+Who can use it: Everyone
+
+- `/soundboard playsound nome:<nome_suono> [canale:<canale_vocale>]`
+- `/soundboard skip`
+- `/soundboard stop`
+- `/soundboard queue`
+- `/soundboard listsounds`
+
+Audio files must be stored in `core/data/soundboard/`.
+
+#### `/fun`
+Who can use it: Everyone
+
+- `/fun coinflip scelta:<testa|croce>`
+- `/fun randomfact`
+- `/fun rps scelta:<sasso|carta|forbici>`
+
+#### `/profile`
+Who can use it: Everyone
+
+- `/profile userinfo [utente:<utente>]`
+- `/profile id utente:<utente>`
+
+#### `/message`
+Who can use it: Staff
+
+- `/message tipo:<reaction_roles> canale:<canale_testo>`
 #### `/soundboard`
 Who can use it: Everyone
 
@@ -419,6 +569,7 @@ Main settings:
 - `ACTIVITY_TEXT`: presence activity text.
 - `STAFF_ROLE_ID`: staff role used by the ticket system.
 - `HIGH_STAFF_ROLE_ID`: high staff role used by high privilege commands (roles, talent, ticket setup).
+- `HIGH_STAFF_ROLE_ID`: high staff role used by high privilege commands (roles, talent, ticket setup).
 
 ## Technical Notes
 
@@ -436,4 +587,5 @@ If you find a problem, open an issue in the repository.
 
 ---
 
+LegoChris Bot V2 © 2026 by gabrycoso
 LegoChris Bot V2 © 2026 by gabrycoso
