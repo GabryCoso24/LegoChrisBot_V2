@@ -9,9 +9,24 @@
 # Ticket runtime data
 core/data/tickets/*.json
 core/data/tickets/transcripts/
+
+# Talent runtime data
 core/data/talent/
+
 # AI runtime data
 core/data/ai/*.json
+
+# Welcome runtime data
+core/data/welcome/*.json
+
+# Auto Roles runtime data
+core/data/autoRoles/autoroles.json
+
+# Moderation runtime data
+core/data/moderation/*
+
+# Generated commands
+/core/src/generated
 
 # Python / Node caches
 **/__pycache__/

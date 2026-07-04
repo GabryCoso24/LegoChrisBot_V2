@@ -1,4 +1,4 @@
-const { getReaderState } = require('./ttsReaderState');
+const { getReaderState, setLastSpeakerId } = require('./ttsReaderState');
 const { enqueueTtsPlayback } = require('../ai/ttsPlaybackQueue');
 
 function isMutedInVoice(member) {
@@ -35,7 +35,12 @@ async function handleTtsMessage(message) {
         return;
     }
 
-    const textForSpeech = `${member.displayName} dice: ${cleanMessage}`;
+    const shouldAnnounceSpeaker = state.lastSpeakerId !== String(message.author.id);
+    const textForSpeech = shouldAnnounceSpeaker
+        ? `${member.displayName} dice: ${cleanMessage}`
+        : cleanMessage;
+
+    setLastSpeakerId(message.guild.id, message.author.id);
 
     enqueueTtsPlayback({
         guild: message.guild,

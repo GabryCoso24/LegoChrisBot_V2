@@ -1,6 +1,24 @@
 # LegoChris Bot V2
 
-Discord bot with AI, TTS, ticket system, reaction roles, and soundboard features.
+Discord bot with AI, TTS, ticket system, reaction roles, soundboard, welcome messages, and auto roles features.
+
+## Migration to JavaScript-Only Backend
+
+As of April 2026, all backend code generation and runtime logic have been migrated to JavaScript only. All Python code and helpers have been fully removed from the backend. All generated files in `/core/generated/` are now valid JavaScript modules, and the bot runtime is fully Node.js/Discord.js based.
+
+If you encounter any legacy references to Python, please open an issue.
+
+## Recent Updates (April 2026)
+
+- **Code Generation:** All generated commands and modules are now valid JavaScript only (no more Python code in generated files).
+- **EmbedBuilder Import Fix:** The generated code now uses the correct import: `const { EmbedBuilder } = require('discord.js');`.
+- **Bugfix:** Various improvements and bugfixes for compatibility with the latest Discord.js and Node.js versions.
+
+## Recent Updates (July 2026)
+
+- **Welcome Messages:** New `/welcome` command to configure automatic embed welcome messages on member join. Supports custom title, description, color, image, thumbnail, footer, and placeholders (`{user}`, `{username}`, `{server}`, `{memberCount}`, `{canale}`). Default banner image loaded from `data/welcome/Benvenuto_MT.png`.
+- **Auto Roles:** New `/autoroles` command to assign roles automatically at join. Separate configuration for human users and bots.
+- **Newline support:** In `/welcome set description`, `/welcome set title`, and `/welcome set footer`, you can type `\n` to insert real line breaks.
 
 ## Features
 
@@ -10,6 +28,8 @@ Discord bot with AI, TTS, ticket system, reaction roles, and soundboard features
 - Tickets: creates, claims, and closes tickets with a final transcript.
 - Reaction roles: adds and removes roles through reactions.
 - Soundboard: plays audio files in voice channels.
+- Welcome messages: sends a configurable embed when a new member joins.
+- Auto roles: automatically assigns roles to users and/or bots on join.
 
 ## Requirements
 
@@ -59,6 +79,7 @@ ACTIVITY_TYPE=WATCHING
 ACTIVITY_TEXT=🧱 | I Mattoncini di LegoChris
 
 STAFF_ROLE_ID=
+HIGH_STAFF_ROLE_ID=
 ```
 
 4. Start the bot.
@@ -74,146 +95,290 @@ core/
 ├── src/
 │   ├── index.js
 │   ├── commands/
+│   │   ├── moderation/
+│   │   └── utilities/
 │   ├── config/
 │   ├── lib/
 │   └── scripts/
 ├── modules/
+│   ├── ai/
+│   ├── autoRoles/
+│   ├── moderation/
+│   ├── reactionRoles/
+│   ├── soundboard/
+│   ├── talent/
+│   ├── tickets/
+│   ├── ttsClassic/
+│   └── welcome/
 └── data/
+    ├── autoRoles/
+    ├── moderation/
+    ├── soundboard/
+    ├── talent/
+    ├── tickets/
+    └── welcome/
 ```
 
 ## Available Commands
 
-### `ai`
-Manages the AI assistant in chat and voice.
+Below is the complete list of active slash commands, including usage and access rules.
 
-- `/ai join`: the bot joins your voice channel and enables AI voice mode by default.
-    - You must already be in a voice channel.
-- `/ai mode`: enables or disables AI voice mode in the server.
-    - Works only after `/ai join`.
-    - When enabled, pinging the bot in chat returns a text response and a spoken voice response.
+### Permissions: Who Can Use What
 
-Usage example:
+- Everyone: any server member.
+- Staff: users with the role configured in `STAFF_ROLE_ID`.
+- High Staff: users with the role configured in `HIGH_STAFF_ROLE_ID`.
+- Discord permissions: some commands also require native Discord permissions (for example, `Ban Members`, `Manage Messages`).
+
+Important: when a command has both a Discord permission requirement and a Staff/High Staff role check, both must pass.
+
+### Moderation
+
+#### `/ban`
+Who can use it: Staff + `Ban Members`
+
+- `/ban user utente:<utente> [motivo:<testo>]`
+
+Example:
+
+```text
+/ban user utente:@User motivo:Spam
+```
+
+#### `/mute`
+Who can use it: Staff + `Moderate Members` (plus voice mute handling)
+
+- `/mute text utente:<utente> durata:<durata> [motivo:<testo>]`
+- `/mute voice utente:<utente> durata:<durata> [motivo:<testo>]`
+
+Supported duration format: `1d2h30m`, `45m`, `10s`, `2w`.
+
+#### `/timeout`
+Who can use it: Staff + `Moderate Members`
+
+- `/timeout utente:<utente> durata:<durata> [motivo:<testo>]`
+
+Applies text timeout and, if the user is in voice, voice mute as well.
+
+#### `/unmute`
+Who can use it: Staff + `Moderate Members`
+
+- `/unmute text utente:<utente> [motivo:<testo>]`
+- `/unmute voice utente:<utente> [motivo:<testo>]`
+
+#### `/untimeout`
+Who can use it: Staff + `Moderate Members`
+
+- `/untimeout utente:<utente> [motivo:<testo>]`
+
+Removes both text timeout and voice mute.
+
+#### `/unban`
+Who can use it: Staff + `Ban Members`
+
+- `/unban user_id:<id_utente> [motivo:<testo>]`
+
+#### `/tempban`
+Who can use it: Staff + `Ban Members`
+
+- `/tempban add utente:<utente> durata:<durata> [motivo:<testo>]`
+- `/tempban modify user_id:<id_utente> durata:<durata>`
+- `/tempban remove user_id:<id_utente>`
+- `/tempban list`
+
+Manages temporary bans with automatic expiration.
+
+#### `/purge`
+Who can use it: Staff + `Manage Messages`
+
+Available subcommands:
+
+- `/purge all`
+- `/purge any [count:<1-1000>]`
+- `/purge bots [count:<1-1000>]`
+- `/purge humans [count:<1-1000>]`
+- `/purge embeds [count:<1-1000>]`
+- `/purge images [count:<1-1000>]`
+- `/purge links [count:<1-1000>]`
+- `/purge invites [count:<1-1000>]`
+- `/purge mentions [count:<1-1000>]`
+- `/purge text [count:<1-1000>]`
+- `/purge user utente:<utente> [count:<1-1000>]`
+- `/purge match text:<testo> [count:<1-1000>]`
+- `/purge not text:<testo> [count:<1-1000>]`
+- `/purge startswith text:<testo> [count:<1-1000>]`
+- `/purge endswith text:<testo> [count:<1-1000>]`
+- `/purge after message:<id_o_link> [count:<1-1000>]`
+- `/purge periodo periodo_di_tempo:<durata>`
+- `/purge fino_a data:<YYYY-MM-DD oppure YYYY-MM-DD HH:mm>`
+
+#### `/rules`
+Who can use it: Staff + `Manage Server`
+
+- `/rules add tipo:<staff|team|server> testo:<testo>`
+- `/rules remove tipo:<staff|team|server> indice:<numero>`
+- `/rules edit tipo:<staff|team|server> indice:<numero> testo:<testo>`
+- `/rules create tipo:<staff|team|server> testo:<multilinea_o_separato_da_|>`
+- `/rules list tipo:<staff|team|server>`
+- `/rules send tipo:<staff|team|server> canale:<canale_testo> [titolo:<titolo>]`
+
+### Utility and Community
+
+#### `/ai`
+Who can use it: Everyone
+
+- `/ai join`
+- `/ai mode`
+
+Typical usage:
 
 ```text
 /ai join
 /ai mode
 ```
 
-### `tts`
-Manages classic TTS and text-to-audio generation.
+#### `/tts`
+Who can use it: Everyone
 
-- `/tts text testo:<text>`: generates an audio file from the provided text and sends it as an attachment.
-- `/tts join`: the bot joins your voice channel and enables the TTS reader.
-    - You must already be in a voice channel.
-- `/tts mode`: enables or disables TTS reading in the current voice channel.
-    - Works only after `/tts join`.
-- `/tts leave`: disables the TTS reader and leaves the voice channel.
-- `/tts status`: shows the current TTS reader status.
+- `/tts text testo:<testo>`
+- `/tts join`
+- `/tts mode`
+- `/tts leave`
+- `/tts status`
 
-How the TTS reader works:
-
-- it only reads messages from users present in the linked voice channel;
-- it only reads users who are self muted or server muted;
-- it ignores bots, long links, and empty messages.
-
-Usage examples:
+Typical usage:
 
 ```text
-/tts text testo:Hello everyone
+/tts text testo:Ciao a tutti
 /tts join
 /tts mode
 /tts status
 /tts leave
 ```
 
-### `ticket`
-Manages the ticket system.
+#### `/soundboard`
+Who can use it: Everyone
 
-- `/ticket setup [canale]`: sends the ticket panel to the selected channel or the current channel.
-    - Publishes the panel image and the dropdown menu with categories.
-- `/ticket claim [canale]`: claims a ticket even outside the ticket channel.
-    - The `canale` parameter is optional.
-    - If the ticket is already claimed, the bot reports it.
-- `/ticket close reason:<reason> [canale]`: closes a ticket and generates the transcript.
-    - The `reason` parameter is required.
-    - The `canale` parameter is optional.
-    - The transcript is saved in `core/data/tickets/transcripts/` and sent to the configured log channel.
+- `/soundboard playsound nome:<nome_suono> [canale:<canale_vocale>]`
+- `/soundboard skip`
+- `/soundboard stop`
+- `/soundboard queue`
+- `/soundboard listsounds`
 
-Permissions and behavior:
+Audio files must be stored in `core/data/soundboard/`.
 
-- only staff can use `claim` and `close`;
-- `setup` can be used in the current channel or in a specified text channel;
-- the ticket channel is deleted after closing;
-- if it is the last ticket in its parent category, the empty category is also removed.
+#### `/fun`
+Who can use it: Everyone
 
-Usage examples:
+- `/fun coinflip scelta:<testa|croce>`
+- `/fun randomfact`
+- `/fun rps scelta:<sasso|carta|forbici>`
 
-```text
-/ticket setup canale:#ticket-opening
-/ticket claim canale:#ticket-mario
-/ticket close reason:Issue resolved canale:#ticket-mario
-```
+#### `/profile`
+Who can use it: Everyone
 
-### `reactionrole`
-Manages reaction roles on the selected message.
+- `/profile userinfo [utente:<utente>]`
+- `/profile id utente:<utente>`
 
-- `/reactionrole set message_id:<id> emoji:<emoji> role:<role>`: links a reaction to a role.
-- `/reactionrole remove message_id:<id> emoji:<emoji>`: removes the link.
+#### `/message`
+Who can use it: Staff
 
-Operational requirements:
-
-- the bot must have the `Manage Roles` permission;
-- the target message must be reachable in the current channel;
-- when a user reacts or removes the reaction, the role is automatically added or removed.
-
-Usage examples:
-
-```text
-/reactionrole set message_id:123456789012345678 emoji:🔥 role:@Events
-/reactionrole remove message_id:123456789012345678 emoji:🔥
-```
-
-### `message`
-Sends a predefined embed message to a specific text channel.
-
-- `/message tipo:reaction_roles canale:<channel>`: sends the reaction roles embed message.
+- `/message tipo:<reaction_roles> canale:<canale_testo>`
 
 At the moment, the only available type is `reaction_roles`.
 
-Usage example:
+#### `/reactionrole`
+Who can use it: Staff
 
-```text
-/message tipo:reaction_roles canale:#announcements
-```
+- `/reactionrole set message_id:<id_messaggio> emoji:<emoji> role:<ruolo>`
+- `/reactionrole remove message_id:<id_messaggio> emoji:<emoji>`
 
-### `soundboard`
-Manages the audio soundboard.
+Technical requirement: the bot must have the Discord `Manage Roles` permission.
 
-- `/soundboard playsound nome:<sound> [canale]`: adds a sound to the queue and starts playback.
-    - `canale` is optional.
-    - If omitted, the bot uses your current voice channel.
-    - The name can be provided with or without an extension.
-- `/soundboard skip`: skips the currently playing sound.
-- `/soundboard stop`: stops playback and clears the queue.
-- `/soundboard queue`: shows the current track and queued sounds.
-- `/soundboard listsounds`: lists all available sounds.
+#### `/roles`
+Who can use it: High Staff + `Manage Roles`
 
-Audio file notes:
+- `/roles add ruoli:<menzioni_ruoli> [membro:<utente>] [tutti:<true|false>]`
+- `/roles remove membro:<utente> ruolo:<ruolo>`
 
-- files must be placed in `core/data/soundboard/`;
-- only `.mp3` and `.wav` are supported;
-- some names may be hidden by the system.
+`add` supports bulk assignment or single-user assignment.
 
-Usage examples:
+#### `/talent`
+Who can use it: High Staff
 
-```text
-/soundboard playsound nome:airhorn
-/soundboard playsound nome:airhorn canale:#voice-1
-/soundboard queue
-/soundboard skip
-/soundboard stop
-/soundboard listsounds
-```
+- `/talent register utente:<utente> ruolo:<host|judge|participant> [anche_giudice:<true|false>]`
+- `/talent add_points utente:<utente> punti:<numero>`
+- `/talent edit_role utente:<utente> ruolo:<host|judge|participant> [anche_giudice:<true|false>]`
+- `/talent leaderboard`
+- `/talent list`
+
+Note: `add_points` also has an internal check (judge/host with judge permission/admin), in addition to the High Staff check.
+
+#### `/ticket`
+Who can use it:
+
+- `setup`: High Staff
+- `claim`, `close`, `old_add`, `old_add_all`: Staff
+
+Subcommands:
+
+- `/ticket setup [canale:<canale_testo>]`
+- `/ticket claim [canale:<canale_testo>]`
+- `/ticket close reason:<motivo> [canale:<canale_testo>]`
+- `/ticket old_add canale:<canale_testo>`
+- `/ticket old_add_all [categoria:<categoria>]`
+
+`claim` and `close` can also be used from outside the ticket channel by specifying `canale`.
+
+#### `/welcome`
+Who can use it: High Staff + `Manage Server`
+
+Configures the automatic welcome message sent when a new member joins.
+
+- `/welcome setchannel canale:<canale_testo>` — imposta il canale dove inviare i welcome
+- `/welcome enable` — abilita il modulo
+- `/welcome disable` — disabilita il modulo
+- `/welcome set title testo:<testo>` — titolo dell'embed (supporta `\n`)
+- `/welcome set description testo:<testo>` — descrizione dell'embed (supporta `\n`)
+- `/welcome set color colore:<hex>` — colore dell'embed (es. `ff7900` o `#ff7900`)
+- `/welcome set image url:<url|none>` — immagine banner; `none` per rimuovere (default: `Benvenuto_MT.png`)
+- `/welcome set thumbnail url:<url|none>` — thumbnail; `none` per usare l'icona server
+- `/welcome set footer testo:<testo|none>` — footer personalizzato (supporta `\n`)
+- `/welcome set mentioncanale canale:<canale_testo> [rimuovi:<true>]` — imposta il canale che sostituisce il placeholder `{canale}`
+- `/welcome test` — invia un messaggio di prova nel canale configurato
+- `/welcome info` — mostra la configurazione attuale
+- `/welcome reset` — ripristina i valori di default
+
+**Placeholders disponibili nella descrizione, titolo e footer:**
+
+| Placeholder | Valore |
+|---|---|
+| `{user}` | Menzione dell'utente (`<@ID>`) |
+| `{username}` | Username senza menzione |
+| `{server}` | Nome del server |
+| `{memberCount}` | Numero totale di membri |
+| `{canale}` | Canale configurato con `/welcome set mentioncanale` |
+
+**File di configurazione:** `core/data/welcome/welcome.json`
+**Banner di default:** `core/data/welcome/Benvenuto_MT.png`
+
+#### `/autoroles`
+Who can use it: High Staff + `Manage Roles`
+
+Gestisce i ruoli assegnati automaticamente quando un utente (o un bot) entra nel server.
+I ruoli per utenti umani e bot sono configurati in liste separate.
+
+- `/autoroles add ruolo:<ruolo> tipo:<👤Utenti|🤖Bot>` — aggiunge un ruolo alla lista specificata
+- `/autoroles remove ruolo:<ruolo> tipo:<👤Utenti|🤖Bot>` — rimuove un ruolo dalla lista specificata
+- `/autoroles list` — mostra entrambe le liste (utenti e bot)
+- `/autoroles enable` — abilita il modulo
+- `/autoroles disable` — disabilita il modulo
+- `/autoroles clear tipo:<👤Utenti|🤖Bot|🗑️Tutti>` — svuota la lista selezionata
+
+**Note:**
+- I ruoli managed (gestiti da integrazioni esterne) non possono essere aggiunti.
+- Il bot non può assegnare ruoli con posizione uguale o superiore alla propria.
+- **File di configurazione:** `core/data/autoRoles/autoroles.json`
 
 ## Automatic Bot Behavior
 
@@ -221,6 +386,8 @@ Usage examples:
 - If the TTS reader is enabled, the bot reads messages from muted users in the configured voice channel.
 - Reaction roles are handled through reaction events, not only through slash commands.
 - Tickets save their history to markdown files before closing.
+- **Welcome messages** are sent automatically in the configured channel when a new member joins (`guildMemberAdd` event).
+- **Auto roles** are assigned automatically to new members (`guildMemberAdd` event), with separate role lists for human users and bots.
 
 ## Useful Scripts
 
@@ -251,6 +418,7 @@ Main settings:
 - `ACTIVITY_TYPE`: presence activity type.
 - `ACTIVITY_TEXT`: presence activity text.
 - `STAFF_ROLE_ID`: staff role used by the ticket system.
+- `HIGH_STAFF_ROLE_ID`: high staff role used by high privilege commands (roles, talent, ticket setup).
 
 ## Technical Notes
 
@@ -268,4 +436,4 @@ If you find a problem, open an issue in the repository.
 
 ---
 
-LegoChris Bot V2 © 2026
+LegoChris Bot V2 © 2026 by gabrycoso

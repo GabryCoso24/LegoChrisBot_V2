@@ -7,6 +7,8 @@ const { handleTicketInteraction } = require('../modules/tickets/interactionHandl
 const { handleReactionRoleAdd, handleReactionRoleRemove } = require('../modules/reactionRoles/reactionRolesManager');
 const { handleAiMessage } = require('../modules/ai/aiMessageHandler');
 const { handleTtsMessage } = require('../modules/ttsClassic/ttsMessageHandler');
+const { handleMemberJoin: handleWelcome } = require('../modules/welcome/welcomeManager');
+const { handleMemberJoin: handleAutoRoles } = require('../modules/autoRoles/autoRolesManager');
 
 if (!config.token) {
     throw new Error('Missing configuration: set TOKEN in src/config/.env');
@@ -31,11 +33,14 @@ const client = new Client({
 
 // ===== Load commands dynamically =====
 client.commands = new Collection();
+
 const commandsPath = path.join(__dirname, 'commands');
-const getCommandFiles = dir => {
+const generatedPath = path.join(__dirname, 'generated');
+
+function getCommandFiles(dir) {
+    if (!fs.existsSync(dir)) return [];
     const entries = fs.readdirSync(dir, { withFileTypes: true });
     const files = [];
-
     for (const entry of entries) {
         const fullPath = path.join(dir, entry.name);
         if (entry.isDirectory()) {
@@ -44,11 +49,13 @@ const getCommandFiles = dir => {
             files.push(fullPath);
         }
     }
-
     return files;
-};
+}
 
-const commandFiles = getCommandFiles(commandsPath);
+const commandFiles = [
+    ...getCommandFiles(commandsPath),
+    ...getCommandFiles(generatedPath)
+];
 
 const activityTypeMap = {
     PLAYING: ActivityType.Playing,
@@ -59,6 +66,8 @@ const activityTypeMap = {
 };
 
 function applyPresence() {
+    if (!client.user) return;
+
     const status = ['online', 'idle', 'dnd', 'invisible'].includes(config.presenceStatus)
         ? config.presenceStatus
         : 'online';
@@ -79,11 +88,20 @@ for (const file of commandFiles) {
 }
 
 // ===== Ready event =====
-client.once('clientReady', async () => {
+client.on('clientReady', async () => {
     applyPresence();
     console.log(`Bot online as ${client.user.tag}`);
 
     await registerCommands();
+});
+
+// Re-apply presence after gateway resume/reconnect events.
+client.on('shardResume', () => {
+    setTimeout(() => applyPresence(), 1500);
+});
+
+client.on('shardReady', () => {
+    setTimeout(() => applyPresence(), 1500);
 });
 
 // ===== Interaction event =====
@@ -146,6 +164,19 @@ client.on('messageCreate', async message => {
         await handleAiMessage(message);
     } catch (err) {
         console.error(err);
+    }
+});
+
+client.on('guildMemberAdd', async member => {
+    try {
+        await handleWelcome(member);
+    } catch (err) {
+        console.error('[Welcome]', err);
+    }
+    try {
+        await handleAutoRoles(member);
+    } catch (err) {
+        console.error('[AutoRoles]', err);
     }
 });
 // ===== Register slash commands =====
